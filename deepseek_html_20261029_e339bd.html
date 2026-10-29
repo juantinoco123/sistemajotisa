@@ -1,0 +1,2424 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WinWeb OS v4 - Ejecutor HTML</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI', 'Segoe UI Variable', Tahoma, sans-serif; }
+  html, body { height:100%; overflow:hidden; user-select:none; }
+
+  body {
+    background: linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+    background-size: cover;
+    position: relative;
+  }
+  body::before {
+    content:'';
+    position:absolute; inset:0;
+    background: radial-gradient(circle at 30% 40%, rgba(0,120,215,.35), transparent 60%),
+                radial-gradient(circle at 70% 80%, rgba(120,0,180,.35), transparent 60%);
+    pointer-events:none;
+  }
+  #desktop {
+    position:absolute; top:0; left:0; right:0; bottom:48px;
+    padding:12px; display:flex; flex-direction:column;
+    flex-wrap:wrap; align-content:flex-start; gap:4px;
+    z-index:1;
+  }
+  .desktop-icon {
+    width:76px; padding:6px; text-align:center; color:#fff;
+    cursor:pointer; border-radius:4px; font-size:11px;
+    text-shadow:1px 1px 3px rgba(0,0,0,.9);
+    transition:background .1s;
+  }
+  .desktop-icon:hover { background:rgba(255,255,255,.12); }
+  .desktop-icon.selected { background:rgba(0,120,215,.5); outline:1px solid rgba(255,255,255,.4); }
+  .desktop-icon .emoji {
+    font-size:38px; display:block; margin-bottom:2px;
+    filter: drop-shadow(2px 2px 3px rgba(0,0,0,.5));
+  }
+
+  #taskbar {
+    position:absolute; bottom:0; left:0; right:0; height:48px;
+    background:rgba(32,32,32,.85);
+    backdrop-filter: blur(20px) saturate(1.5);
+    border-top:1px solid rgba(255,255,255,.08);
+    display:flex; align-items:center; justify-content:center;
+    z-index:10000; color:#fff;
+  }
+  #taskbarInner { display:flex; align-items:center; gap:2px; max-width:100%; padding:0 8px; }
+  #taskbarItems { display:flex; align-items:center; gap:2px; overflow:hidden; }
+  .taskbar-btn {
+    width:40px; height:40px; border-radius:6px;
+    background:transparent; border:none; color:#fff;
+    font-size:20px; cursor:pointer; display:flex;
+    align-items:center; justify-content:center;
+    position:relative; transition:background .1s;
+  }
+  .taskbar-btn:hover { background:rgba(255,255,255,.1); }
+  .taskbar-btn.active { background:rgba(255,255,255,.15); }
+  .taskbar-btn.active::after {
+    content:''; position:absolute; bottom:3px; left:50%;
+    transform:translateX(-50%); width:16px; height:3px;
+    background:#4cc2ff; border-radius:2px;
+  }
+  .taskbar-btn.running::after {
+    content:''; position:absolute; bottom:3px; left:50%;
+    transform:translateX(-50%); width:6px; height:3px;
+    background:#4cc2ff; border-radius:2px;
+  }
+  #startBtn { font-size:22px; }
+  #startBtn:hover { background:rgba(255,255,255,.15); }
+
+  #sysTray {
+    position:absolute; right:8px; top:0; height:48px;
+    display:flex; align-items:center; gap:8px;
+    padding:0 8px; color:#fff; font-size:12px;
+  }
+  .tray-icon {
+    width:32px; height:32px; border-radius:4px;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; font-size:14px;
+  }
+  .tray-icon:hover { background:rgba(255,255,255,.1); }
+  #clock {
+    display:flex; flex-direction:column; align-items:flex-end;
+    padding:4px 8px; border-radius:4px; cursor:pointer;
+    line-height:1.2; font-size:11px;
+  }
+  #clock:hover { background:rgba(255,255,255,.1); }
+  #clock .time { font-size:12px; }
+  #clock .date { font-size:10px; opacity:.9; }
+
+  #startMenu {
+    position:absolute; bottom:54px; left:50%;
+    transform:translateX(-50%) translateY(20px);
+    width:600px; max-width:95vw; height:640px; max-height:80vh;
+    background:rgba(40,40,40,.92);
+    backdrop-filter: blur(30px) saturate(1.8);
+    border-radius:10px; padding:20px;
+    box-shadow: 0 10px 40px rgba(0,0,0,.6);
+    opacity:0; pointer-events:none;
+    transition: all .2s ease;
+    z-index:10001; color:#fff;
+    display:flex; flex-direction:column;
+    border:1px solid rgba(255,255,255,.08);
+  }
+  #startMenu.open { opacity:1; pointer-events:auto; transform:translateX(-50%) translateY(0); }
+  #startMenu .search {
+    background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1);
+    border-radius:6px; padding:8px 14px; color:#fff;
+    font-size:13px; width:100%; margin-bottom:16px; outline:none;
+  }
+  #startMenu .search::placeholder { color:#bbb; }
+  #startMenu .search:focus { border-color:#4cc2ff; }
+  .start-section-title { font-size:12px; font-weight:600; margin:6px 0 10px; display:flex; justify-content:space-between; align-items:center; }
+  .start-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:6px; overflow-y:auto; flex:1; }
+  .start-app {
+    display:flex; flex-direction:column; align-items:center; gap:4px;
+    padding:10px 4px; border-radius:6px; cursor:pointer;
+    transition:background .1s; font-size:11px; text-align:center;
+  }
+  .start-app:hover { background:rgba(255,255,255,.08); }
+  .start-app .emoji { font-size:28px; width:40px; height:40px; display:flex; align-items:center; justify-content:center; }
+  .start-footer {
+    display:flex; justify-content:space-between; align-items:center;
+    padding-top:14px; margin-top:10px;
+    border-top:1px solid rgba(255,255,255,.1);
+  }
+  .start-user { display:flex; align-items:center; gap:8px; padding:6px 10px; border-radius:4px; cursor:pointer; }
+  .start-user:hover { background:rgba(255,255,255,.08); }
+  .start-user .avatar {
+    width:28px; height:28px; border-radius:50%;
+    background:linear-gradient(135deg,#4cc2ff,#0078d4);
+    display:flex; align-items:center; justify-content:center; font-size:14px;
+  }
+  .start-power { padding:6px 10px; border-radius:4px; cursor:pointer; font-size:16px; }
+  .start-power:hover { background:rgba(255,255,255,.08); }
+
+  .window {
+    position:absolute; background:#f3f3f3;
+    border-radius:8px; overflow:hidden;
+    display:flex; flex-direction:column;
+    box-shadow: 0 10px 40px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.08);
+    min-width:280px; min-height:180px; z-index:100;
+  }
+  .window.maximized {
+    top:0 !important; left:0 !important;
+    width:100% !important;
+    height:calc(100% - 48px) !important;
+    border-radius:0;
+  }
+  .window-header {
+    background:#fff; color:#111;
+    padding:0 0 0 12px; height:32px;
+    display:flex; justify-content:space-between; align-items:center;
+    cursor:default; font-size:12px; font-weight:600;
+    border-bottom:1px solid #e0e0e0; flex-shrink:0;
+  }
+  .window-header .title {
+    display:flex; align-items:center; gap:6px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    cursor:move; flex:1;
+  }
+  .window-header .title .emoji { font-size:14px; }
+  .window-controls { display:flex; height:100%; }
+  .window-controls button {
+    background:transparent; border:none; cursor:pointer;
+    width:46px; height:32px; font-size:12px;
+    display:flex; align-items:center; justify-content:center;
+    color:#333; transition:background .1s;
+  }
+  .window-controls button:hover { background:#e5e5e5; }
+  .window-controls button.close:hover { background:#e81123; color:#fff; }
+  .window-body {
+    flex:1; overflow:auto; background:#fff;
+    position:relative; display:flex; flex-direction:column;
+  }
+  .window-body iframe, .window-body video, .window-body img {
+    width:100%; height:100%; border:none; display:block; object-fit:contain;
+  }
+
+  .toolbar {
+    padding:6px 8px; background:#f9f9f9; display:flex; gap:6px; flex-wrap:wrap;
+    border-bottom:1px solid #ddd; align-items:center; flex-shrink:0;
+  }
+  .toolbar button, .toolbar select, .toolbar input[type=text] {
+    padding:4px 10px; border:1px solid #ccc; background:#fff;
+    border-radius:4px; cursor:pointer; font-size:12px; color:#222;
+  }
+  .toolbar button:hover { background:#eef4ff; border-color:#4cc2ff; }
+  .toolbar button.active { background:#0078d4; color:#fff; border-color:#0078d4; }
+  .toolbar button:disabled { opacity:.4; cursor:not-allowed; }
+  .toolbar button:disabled:hover { background:#fff; border-color:#ccc; }
+  .toolbar input[type=text] { flex:1; cursor:text; }
+  .toolbar .sep { width:1px; height:22px; background:#ddd; margin:0 4px; }
+
+  .fm-path {
+    font-size:11px; padding:5px 10px; color:#555; background:#eee;
+    border-bottom:1px solid #ddd; display:flex; align-items:center; gap:6px;
+    flex-wrap:wrap;
+  }
+  .fm-path .crumb { padding:2px 6px; border-radius:3px; cursor:pointer; }
+  .fm-path .crumb:hover { background:#dbe9ff; color:#0078d4; }
+  .fm-list {
+    padding:12px; display:flex; flex-wrap:wrap; gap:10px; align-content:flex-start;
+    flex:1; overflow:auto; position:relative; min-height:100px;
+  }
+  .fm-list.dragover { background:#eef4ff; outline:2px dashed #4cc2ff; outline-offset:-6px; }
+  .fm-item {
+    width:88px; text-align:center; cursor:pointer; padding:8px 4px;
+    border-radius:4px; font-size:11px; overflow:hidden; color:#222;
+    transition: background .1s;
+  }
+  .fm-item:hover { background:#e5f0ff; }
+  .fm-item.selected { background:#cce4ff; outline:1px solid #4cc2ff; }
+  .fm-item.cut { opacity:.5; }
+  .fm-item.copied { outline:1px dashed #4cc2ff; }
+  .fm-item .emoji { font-size:34px; display:block; margin-bottom:2px; }
+  .fm-item span:last-child { display:block; word-break:break-word; }
+  .fm-item img.thumb {
+    width:100%; height:44px; object-fit:cover; border-radius:3px;
+    display:block; margin-bottom:2px;
+  }
+
+  .fm-status {
+    background:#f0f0f0; padding:4px 10px; font-size:11px; color:#555;
+    border-top:1px solid #ddd; display:flex; justify-content:space-between;
+    flex-shrink:0;
+  }
+  .fm-status .clipboard-info { color:#0078d4; font-weight:600; }
+
+  .paint-canvas-wrap {
+    flex:1; overflow:auto; background:#5a5a5a; padding:12px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .paint-canvas-wrap canvas {
+    background:#fff; box-shadow:0 2px 12px rgba(0,0,0,.5); cursor:crosshair;
+  }
+
+  .word-editor { flex:1; overflow:auto; background:#e6e6e6; padding:24px; }
+  .word-page {
+    background:#fff; max-width:780px; margin:0 auto; min-height:100%;
+    padding:50px 60px; box-shadow:0 2px 15px rgba(0,0,0,.15);
+    outline:none; font-family:Georgia, serif; font-size:15px; line-height:1.7;
+    color:#111;
+  }
+
+  /* EDITOR DE CÓDIGO */
+  .code-editor-wrap {
+    flex:1; display:flex; flex-direction:column; overflow:hidden;
+  }
+  .code-editor-tabs {
+    display:flex; background:#2d2d2d; border-bottom:1px solid #111;
+  }
+  .code-tab {
+    padding:8px 16px; color:#ccc; cursor:pointer; font-size:12px;
+    border-right:1px solid #111; background:#3a3a3a;
+  }
+  .code-tab.active { background:#1e1e1e; color:#fff; }
+  .code-editor-split {
+    flex:1; display:flex; overflow:hidden;
+  }
+  .code-editor-pane {
+    flex:1; display:flex; flex-direction:column;
+    border-right:1px solid #111;
+  }
+  .code-editor-pane:last-child { border-right:none; }
+  .code-pane-header {
+    padding:4px 10px; background:#252526; color:#ccc;
+    font-size:11px; border-bottom:1px solid #111;
+  }
+  .code-editor-area {
+    flex:1; background:#1e1e1e; color:#d4d4d4;
+    border:none; outline:none; resize:none;
+    padding:12px; font-family:Consolas,'Courier New',monospace;
+    font-size:13px; line-height:1.5; tab-size:2;
+  }
+  .code-preview-frame {
+    flex:1; border:none; background:#fff;
+  }
+
+  .prompt-overlay {
+    position:fixed; inset:0; background:rgba(0,0,0,.5);
+    display:flex; align-items:center; justify-content:center; z-index:99999;
+  }
+  .prompt-box {
+    background:#fff; padding:20px; border-radius:8px; min-width:300px;
+    box-shadow:0 10px 40px rgba(0,0,0,.5);
+  }
+  .prompt-box .title { font-size:14px; margin-bottom:8px; color:#111; }
+  .prompt-box input, .prompt-box select {
+    width:100%; padding:8px; margin:10px 0; border:1px solid #ccc;
+    border-radius:4px; outline:none; font-size:13px;
+  }
+  .prompt-box input:focus, .prompt-box select:focus { border-color:#0078d4; }
+  .prompt-box .btns { text-align:right; }
+  .prompt-box button {
+    padding:6px 16px; margin-left:6px; border:1px solid #ccc; border-radius:4px;
+    cursor:pointer; background:#fff; font-size:12px; color:#111;
+  }
+  .prompt-box button.ok { background:#0078d4; color:#fff; border-color:#0078d4; }
+  .prompt-box button.ok:hover { background:#106ebe; }
+  .prompt-box button.cancel:hover { background:#f0f0f0; }
+
+  #notifyArea {
+    position:fixed; bottom:60px; right:12px;
+    display:flex; flex-direction:column; gap:8px;
+    z-index:99998; pointer-events:none;
+  }
+  .notification {
+    background:rgba(40,40,40,.95);
+    backdrop-filter: blur(20px);
+    color:#fff; padding:12px 16px; border-radius:8px;
+    min-width:280px; max-width:340px; font-size:12px;
+    box-shadow:0 6px 20px rgba(0,0,0,.5);
+    border:1px solid rgba(255,255,255,.1);
+    animation: slideIn .25s ease;
+    pointer-events:auto;
+  }
+  .notification .t { font-weight:600; margin-bottom:3px; font-size:13px; }
+  @keyframes slideIn { from { transform:translateX(120%); opacity:0; } to { transform:translateX(0); opacity:1; } }
+  .notification.hide { animation: slideOut .25s ease forwards; }
+  @keyframes slideOut { to { transform:translateX(120%); opacity:0; } }
+
+  #ctxMenu {
+    position:fixed; background:rgba(40,40,40,.95);
+    backdrop-filter: blur(20px);
+    border:1px solid rgba(255,255,255,.1);
+    border-radius:6px; padding:4px 0; min-width:210px;
+    box-shadow:0 6px 20px rgba(0,0,0,.5);
+    z-index:99999; display:none; color:#fff; font-size:12px;
+  }
+  #ctxMenu .item {
+    padding:8px 14px; cursor:pointer; display:flex; align-items:center; gap:10px;
+    justify-content:space-between;
+  }
+  #ctxMenu .item:hover { background:rgba(255,255,255,.1); }
+  #ctxMenu .item.disabled { opacity:.4; cursor:default; }
+  #ctxMenu .item.disabled:hover { background:transparent; }
+  #ctxMenu .item .shortcut { font-size:10px; opacity:.6; }
+  #ctxMenu .divider { height:1px; background:rgba(255,255,255,.1); margin:4px 0; }
+
+  #desktopIcons {
+    display:flex; flex-direction:column; flex-wrap:wrap;
+    gap:4px; align-content:flex-start; height:100%;
+  }
+
+  #taskView {
+    position:fixed; inset:0; background:rgba(20,20,20,.7);
+    backdrop-filter: blur(20px);
+    z-index:9998; display:none; padding:60px 40px 80px; overflow:auto;
+  }
+  #taskView.open { display:block; }
+  #taskView h2 { color:#fff; font-weight:400; margin-bottom:24px; font-size:20px; }
+  #taskViewGrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:20px; }
+  .task-view-card {
+    background:#fff; border-radius:8px; height:160px;
+    box-shadow:0 4px 20px rgba(0,0,0,.4);
+    display:flex; flex-direction:column; overflow:hidden;
+    cursor:pointer; transition: transform .15s;
+  }
+  .task-view-card:hover { transform:scale(1.03); }
+  .task-view-card .card-header {
+    padding:6px 10px; font-size:11px; background:#f3f3f3;
+    display:flex; align-items:center; gap:6px; border-bottom:1px solid #e0e0e0;
+  }
+  .task-view-card .card-body {
+    flex:1; background:#fafafa; display:flex;
+    align-items:center; justify-content:center; font-size:44px; color:#888;
+  }
+
+  ::-webkit-scrollbar { width:12px; height:12px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:#c0c0c0; border-radius:6px; border:3px solid transparent; background-clip:padding-box; }
+  ::-webkit-scrollbar-thumb:hover { background:#a0a0a0; border:3px solid transparent; background-clip:padding-box; }
+
+  .settings-box { padding:20px; font-size:13px; color:#333; }
+  .settings-box h3 { margin-bottom:10px; color:#111; }
+  .settings-box button {
+    padding:8px 16px; margin:4px 4px 0 0; border:1px solid #ccc;
+    border-radius:4px; background:#fafafa; cursor:pointer; font-size:12px;
+  }
+  .settings-box button:hover { background:#eef4ff; border-color:#4cc2ff; }
+
+  #bootSplash {
+    position:fixed; inset:0; background:#000; z-index:999999;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    color:#fff; transition: opacity .8s;
+  }
+  #bootSplash.hide { opacity:0; pointer-events:none; }
+  #bootSplash .logo { font-size:60px; margin-bottom:20px; }
+  #bootSplash .loading {
+    width:160px; height:3px; background:#222; border-radius:2px;
+    overflow:hidden; margin-top:20px;
+  }
+  #bootSplash .loading::after {
+    content:''; display:block; height:100%; width:40%;
+    background:#4cc2ff; animation: load 1.5s infinite ease-in-out;
+  }
+  @keyframes load { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
+</style>
+</head>
+<body>
+
+<div id="bootSplash">
+  <div class="logo">🪟</div>
+  <div>WinWeb OS v4</div>
+  <div class="loading"></div>
+</div>
+
+<div id="desktop">
+  <div id="desktopIcons"></div>
+</div>
+
+<div id="taskView">
+  <h2>Vista de tareas</h2>
+  <div id="taskViewGrid"></div>
+</div>
+
+<div id="notifyArea"></div>
+<div id="ctxMenu"></div>
+
+<div id="taskbar">
+  <div id="taskbarInner">
+    <button class="taskbar-btn" id="startBtn" title="Inicio">🪟</button>
+    <div id="taskbarItems"></div>
+  </div>
+  <div id="sysTray">
+    <div class="tray-icon" id="wifiIcon" title="WiFi">📶</div>
+    <div class="tray-icon" id="volumeIcon" title="Volumen">🔊</div>
+    <div id="clock">
+      <span class="time">--:--</span>
+      <span class="date">--/--/----</span>
+    </div>
+  </div>
+</div>
+
+<div id="startMenu">
+  <input class="search" placeholder="🔍  Buscar aplicaciones, archivos...">
+  <div class="start-section-title">Anclado</div>
+  <div class="start-grid" id="startGrid"></div>
+  <div class="start-footer">
+    <div class="start-user">
+      <div class="avatar">👤</div>
+      <span>Usuario</span>
+    </div>
+    <div class="start-power" id="powerBtn" title="Apagar">⏻</div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   WinWeb OS v4 - Con ejecutor de programas HTML
+   ============================================================ */
+
+// ================= SISTEMA DE ARCHIVOS =================
+const FS_KEY = 'winweb_fs_v4';
+let fs = JSON.parse(localStorage.getItem(FS_KEY)) || null;
+if (!fs) {
+  fs = {
+    root: {
+      type: 'folder',
+      children: {
+        'Escritorio': { type: 'folder', children: {} },
+        'Documentos': {
+          type: 'folder',
+          children: {
+            'bienvenida.txt': {
+              type: 'file',
+              mime: 'text/plain',
+              content: '¡Bienvenido a WinWeb OS v4!\n\nNuevo: ejecutor de programas HTML.\n\n1. Abre "Code Studio" desde el escritorio o menú inicio\n2. Escribe HTML/CSS/JS en el editor\n3. Verás el resultado en vivo en el panel derecho\n4. Guarda el programa en /Programas\n5. Desde el explorador, doble click en un .html → se ejecuta en ventana'
+            }
+          }
+        },
+        'Imágenes': { type: 'folder', children: {} },
+        'Videos': { type: 'folder', children: {} },
+        'Dibujos': { type: 'folder', children: {} },
+        'Descargas': { type: 'folder', children: {} },
+        'Programas': {
+          type: 'folder',
+          children: {
+            'Calculadora.html': {
+              type: 'file',
+              mime: 'text/html',
+              content: `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Calc</title>
+<style>
+  body { font-family: Arial; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: linear-gradient(135deg,#667eea,#764ba2); }
+  .calc { background: #222; padding: 20px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+  .display { background: #000; color: #0f0; font-size: 28px; text-align: right; padding: 12px; border-radius: 6px; margin-bottom: 10px; min-height: 40px; font-family: monospace; }
+  .keys { display: grid; grid-template-columns: repeat(4, 60px); gap: 6px; }
+  button { padding: 16px; border: none; border-radius: 6px; background: #444; color: #fff; font-size: 18px; cursor: pointer; }
+  button:hover { background: #555; }
+  button.op { background: #f39c12; }
+  button.eq { background: #27ae60; }
+  button.clr { background: #e74c3c; }
+</style></head>
+<body>
+<div class="calc">
+  <div class="display" id="disp">0</div>
+  <div class="keys">
+    <button class="clr" onclick="clr()">C</button>
+    <button onclick="press('(')">(</button>
+    <button onclick="press(')')">)</button>
+    <button class="op" onclick="press('/')">÷</button>
+    <button onclick="press('7')">7</button>
+    <button onclick="press('8')">8</button>
+    <button onclick="press('9')">9</button>
+    <button class="op" onclick="press('*')">×</button>
+    <button onclick="press('4')">4</button>
+    <button onclick="press('5')">5</button>
+    <button onclick="press('6')">6</button>
+    <button class="op" onclick="press('-')">−</button>
+    <button onclick="press('1')">1</button>
+    <button onclick="press('2')">2</button>
+    <button onclick="press('3')">3</button>
+    <button class="op" onclick="press('+')">+</button>
+    <button onclick="press('0')">0</button>
+    <button onclick="press('.')">.</button>
+    <button class="eq" onclick="evaluate()">=</button>
+    <button onclick="back()">⌫</button>
+  </div>
+</div>
+<script>
+  const disp = document.getElementById('disp');
+  let expr = '0';
+  function press(c) { if (expr === '0' && /[0-9.]/.test(c)) expr = c; else expr += c; disp.textContent = expr; }
+  function clr() { expr = '0'; disp.textContent = '0'; }
+  function back() { expr = expr.length > 1 ? expr.slice(0, -1) : '0'; disp.textContent = expr; }
+  function evaluate() { try { expr = String(eval(expr)); disp.textContent = expr; } catch { disp.textContent = 'Error'; expr = '0'; } }
+<\/script>
+</body></html>`
+            },
+            'Reloj Digital.html': {
+              type: 'file',
+              mime: 'text/html',
+              content: `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Reloj</title>
+<style>
+  body { margin: 0; height: 100vh; display: flex; justify-content: center; align-items: center; background: #000; color: #0f0; font-family: 'Courier New', monospace; }
+  .clock { font-size: 80px; font-weight: bold; text-shadow: 0 0 20px #0f0, 0 0 40px #0f0; }
+  .date { font-size: 18px; text-align: center; color: #0a0; margin-top: 10px; letter-spacing: 3px; }
+</style></head>
+<body>
+<div>
+  <div class="clock" id="t">--:--:--</div>
+  <div class="date" id="d"></div>
+</div>
+<script>
+  function tick() {
+    const d = new Date();
+    document.getElementById('t').textContent = d.toLocaleTimeString();
+    document.getElementById('d').textContent = d.toLocaleDateString('es-ES', { weekday:'long', year:'numeric', month:'long', day:'numeric' }).toUpperCase();
+  }
+  setInterval(tick, 1000); tick();
+<\/script>
+</body></html>`
+            },
+            'Dibujar.html': {
+              type: 'file',
+              mime: 'text/html',
+              content: `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Dibujar</title>
+<style>
+  body { margin: 0; font-family: sans-serif; background: #333; }
+  .bar { padding: 8px; background: #222; color: #fff; display: flex; gap: 8px; align-items: center; }
+  canvas { display: block; cursor: crosshair; background: #fff; margin: 10px; border-radius: 6px; box-shadow: 0 0 20px rgba(0,0,0,.5); }
+  input[type=color] { width: 40px; height: 30px; }
+  input[type=range] { width: 100px; }
+  button { padding: 6px 12px; border: none; border-radius: 4px; background: #e74c3c; color: #fff; cursor: pointer; }
+</style></head>
+<body>
+<div class="bar">
+  <input type="color" id="color" value="#e74c3c">
+  <input type="range" id="size" min="1" max="40" value="4">
+  <button onclick="clearAll()">Limpiar</button>
+</div>
+<canvas id="c" width="600" height="400"></canvas>
+<script>
+  const c = document.getElementById('c');
+  const ctx = c.getContext('2d');
+  let drawing = false;
+  ctx.fillStyle = '#fff'; ctx.fillRect(0,0,c.width,c.height);
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  c.addEventListener('mousedown', (e) => {
+    drawing = true;
+    const r = c.getBoundingClientRect();
+    ctx.beginPath();
+    ctx.moveTo(e.clientX - r.left, e.clientY - r.top);
+  });
+  c.addEventListener('mousemove', (e) => {
+    if (!drawing) return;
+    const r = c.getBoundingClientRect();
+    ctx.strokeStyle = document.getElementById('color').value;
+    ctx.lineWidth = document.getElementById('size').value;
+    ctx.lineTo(e.clientX - r.left, e.clientY - r.top);
+    ctx.stroke();
+  });
+  c.addEventListener('mouseup', () => drawing = false);
+  c.addEventListener('mouseleave', () => drawing = false);
+  function clearAll() { ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height); }
+<\/script>
+</body></html>`
+            }
+          }
+        }
+      }
+    }
+  };
+  saveFS();
+}
+
+function saveFS() {
+  try { localStorage.setItem(FS_KEY, JSON.stringify(fs)); }
+  catch (e) {
+    notify('Error', 'No se pudo guardar: almacenamiento lleno.');
+    throw e;
+  }
+}
+function getNode(path) {
+  let node = fs.root;
+  for (const p of path) {
+    if (!node.children || !node.children[p]) return null;
+    node = node.children[p];
+  }
+  return node;
+}
+function getParent(path) { return getNode(path.slice(0, -1)); }
+function saveToFolder(folderName, fileName, data, mime = 'text/plain') {
+  const folder = fs.root.children[folderName];
+  if (!folder) return false;
+  folder.children[fileName] = { type: 'file', content: data, mime };
+  saveFS();
+  return true;
+}
+function deepClone(obj) { return JSON.parse(JSON.stringify(obj)); }
+function uniqueName(folder, baseName) {
+  if (!folder.children[baseName]) return baseName;
+  const dot = baseName.lastIndexOf('.');
+  const name = dot > 0 ? baseName.slice(0, dot) : baseName;
+  const ext = dot > 0 ? baseName.slice(dot) : '';
+  let i = 1;
+  while (folder.children[`${name} (${i})${ext}`]) i++;
+  return `${name} (${i})${ext}`;
+}
+
+function getFileType(name, mime) {
+  const n = (name || '').toLowerCase();
+  const m = (mime || '').toLowerCase();
+  if (n.endsWith('.html') || n.endsWith('.htm') || m === 'text/html') return 'html';
+  if (n.match(/\.(png|jpg|jpeg|gif|webp|bmp|svg)$/) || m.startsWith('image/')) return 'image';
+  if (n.match(/\.(mp4|webm|ogg|avi|mov|mkv)$/) || m.startsWith('video/')) return 'video';
+  if (n.match(/\.(mp3|wav|ogg|flac|m4a)$/) || m.startsWith('audio/')) return 'audio';
+  if (n.match(/\.(txt|md|log|json|csv|css|js|xml|ini)$/) || m.startsWith('text/') || m === 'application/json') return 'text';
+  return 'file';
+}
+
+function getIconForFile(name, mime, node) {
+  if (node && node.type === 'folder') return '📁';
+  const type = getFileType(name, mime);
+  if (type === 'html') return '🌐';
+  if (type === 'image') return '🖼️';
+  if (type === 'video') return '🎬';
+  if (type === 'audio') return '🎵';
+  if (type === 'text') {
+    if (name?.match(/\.(css|js|json)$/)) return '📋';
+    return '📄';
+  }
+  return '📦';
+}
+
+// ================= IMPORTAR ARCHIVOS =================
+function importFileToSystem(file, targetPath) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const target = getNode(targetPath);
+      if (!target || target.type !== 'folder') return reject('Destino inválido');
+      const newName = uniqueName(target, file.name);
+      target.children[newName] = {
+        type: 'file',
+        content: reader.result,
+        mime: file.type || 'application/octet-stream',
+        size: file.size
+      };
+      try { saveFS(); resolve(newName); }
+      catch (e) { reject('Sin espacio'); }
+    };
+    reader.onerror = () => reject('Error de lectura');
+    reader.readAsDataURL(file);
+  });
+}
+
+// Decodificar un archivo de texto guardado como dataURL o texto plano
+function getTextContent(node) {
+  if (!node || node.type !== 'file') return '';
+  const content = node.content || '';
+  if (content.startsWith('data:')) {
+    try {
+      const comma = content.indexOf(',');
+      const header = content.substring(0, comma);
+      const data = content.substring(comma + 1);
+      if (header.includes('base64')) {
+        return decodeURIComponent(escape(atob(data)));
+      }
+      return decodeURIComponent(data);
+    } catch(e) { return content; }
+  }
+  return content;
+}
+
+function downloadFileFromSystem(node, name) {
+  if (!node || node.type !== 'file') return;
+  let url, revoke = false;
+  if (node.content.startsWith('data:')) url = node.content;
+  else {
+    const blob = new Blob([node.content], { type: node.mime || 'text/plain' });
+    url = URL.createObjectURL(blob);
+    revoke = true;
+  }
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  if (revoke) setTimeout(() => URL.revokeObjectURL(url), 1000);
+  notify('Descarga', `"${name}" guardado en tu PC`);
+}
+
+// ================= PORTAPAPELES =================
+const fsClipboard = { items: [], mode: null };
+function clipboardCopy(paths) {
+  fsClipboard.items = paths.map(p => ({ path: [...p] }));
+  fsClipboard.mode = 'copy';
+  notify('Portapapeles', `${paths.length} elemento(s) copiado(s)`);
+  refreshAllFileManagers();
+}
+function clipboardCut(paths) {
+  fsClipboard.items = paths.map(p => ({ path: [...p] }));
+  fsClipboard.mode = 'cut';
+  notify('Portapapeles', `${paths.length} elemento(s) cortado(s)`);
+  refreshAllFileManagers();
+}
+function clipboardClear() {
+  fsClipboard.items = []; fsClipboard.mode = null;
+  refreshAllFileManagers();
+}
+function refreshAllFileManagers() {
+  document.querySelectorAll('.fm-list').forEach(list => {
+    if (list._refresh) list._refresh();
+  });
+}
+function clipboardPaste(targetPath) {
+  if (!fsClipboard.items.length) return notify('Portapapeles', 'No hay nada que pegar');
+  const target = getNode(targetPath);
+  if (!target || target.type !== 'folder') return notify('Error', 'Destino inválido');
+  let count = 0;
+  for (const item of fsClipboard.items) {
+    const srcParent = getParent(item.path);
+    const srcName = item.path[item.path.length - 1];
+    if (!srcParent || !srcParent.children[srcName]) continue;
+    if (fsClipboard.mode === 'cut') {
+      if (targetPath.length >= item.path.length &&
+          targetPath.slice(0, item.path.length).join('/') === item.path.join('/')) {
+        notify('Error', 'No puedes mover una carpeta dentro de sí misma');
+        continue;
+      }
+    }
+    const node = srcParent.children[srcName];
+    if (fsClipboard.mode === 'copy') {
+      const newName = uniqueName(target, srcName);
+      target.children[newName] = deepClone(node);
+      count++;
+    } else {
+      if (item.path.join('/') === [...targetPath, srcName].join('/')) continue;
+      const newName = uniqueName(target, srcName);
+      target.children[newName] = node;
+      delete srcParent.children[srcName];
+      count++;
+    }
+  }
+  try { saveFS(); } catch(e) { return; }
+  if (fsClipboard.mode === 'cut') {
+    fsClipboard.items = []; fsClipboard.mode = null;
+    notify('Portapapeles', `${count} elemento(s) movido(s)`);
+  } else {
+    notify('Portapapeles', `${count} elemento(s) pegado(s)`);
+  }
+  refreshAllFileManagers();
+  renderDesktopIcons();
+}
+
+// ================= NOTIFICACIONES =================
+function notify(title, message) {
+  const area = document.getElementById('notifyArea');
+  const n = document.createElement('div');
+  n.className = 'notification';
+  n.innerHTML = `<div class="t">${title}</div><div>${message || ''}</div>`;
+  area.appendChild(n);
+  setTimeout(() => {
+    n.classList.add('hide');
+    setTimeout(() => n.remove(), 300);
+  }, 3500);
+}
+
+// ================= PROMPT =================
+function askInput(title, defaultValue = '') {
+  return new Promise((resolve) => {
+    const ov = document.createElement('div');
+    ov.className = 'prompt-overlay';
+    ov.innerHTML = `
+      <div class="prompt-box">
+        <div class="title">${title}</div>
+        <input type="text" value="${defaultValue}">
+        <div class="btns">
+          <button class="cancel">Cancelar</button>
+          <button class="ok">Aceptar</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(ov);
+    const input = ov.querySelector('input');
+    input.focus(); input.select();
+    const done = (val) => { ov.remove(); resolve(val); };
+    ov.querySelector('.ok').onclick = () => done(input.value.trim());
+    ov.querySelector('.cancel').onclick = () => done(null);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') done(input.value.trim());
+      if (e.key === 'Escape') done(null);
+    });
+  });
+}
+
+// ================= VENTANAS =================
+let zIndex = 100;
+const windows = new Map();
+let windowCounter = 0;
+let activeWinId = null;
+
+function createWindow({ title, icon = '📄', width = 640, height = 440, app, contentBuilder, onClose }) {
+  const id = 'win-' + (++windowCounter);
+  const el = document.createElement('div');
+  el.className = 'window';
+  el.id = id;
+  el.style.width = width + 'px';
+  el.style.height = height + 'px';
+  el.style.top = (30 + Math.random() * 60) + 'px';
+  el.style.left = (60 + Math.random() * 200) + 'px';
+  el.style.zIndex = ++zIndex;
+
+  el.innerHTML = `
+    <div class="window-header">
+      <div class="title"><span class="emoji">${icon}</span><span>${title}</span></div>
+      <div class="window-controls">
+        <button data-act="min" title="Minimizar">—</button>
+        <button data-act="max" title="Maximizar">▢</button>
+        <button data-act="close" class="close" title="Cerrar">✕</button>
+      </div>
+    </div>
+    <div class="window-body"></div>
+  `;
+  document.getElementById('desktop').appendChild(el);
+
+  const bodyEl = el.querySelector('.window-body');
+  contentBuilder(bodyEl, el);
+
+  el.querySelector('[data-act="close"]').onclick = (e) => {
+    e.stopPropagation();
+    if (onClose) onClose();
+    closeWindow(id);
+  };
+  el.querySelector('[data-act="min"]').onclick = (e) => {
+    e.stopPropagation();
+    el.style.display = 'none';
+    updateTaskbar();
+  };
+  el.querySelector('[data-act="max"]').onclick = (e) => {
+    e.stopPropagation();
+    el.classList.toggle('maximized');
+  };
+
+  makeDraggable(el, el.querySelector('.window-header .title'));
+  el.addEventListener('mousedown', () => {
+    el.style.zIndex = ++zIndex;
+    setActiveTask(id);
+  });
+  el.querySelector('.window-header .title').addEventListener('dblclick', () => {
+    el.classList.toggle('maximized');
+  });
+
+  windows.set(id, { el, app, title, icon });
+  updateTaskbar();
+  setActiveTask(id);
+  return id;
+}
+
+function closeWindow(id) {
+  const w = windows.get(id);
+  if (!w) return;
+  w.el.remove();
+  windows.delete(id);
+  updateTaskbar();
+}
+
+function makeDraggable(el, handle) {
+  let sx, sy, ox, oy;
+  handle.addEventListener('mousedown', (e) => {
+    if (e.target.tagName === 'BUTTON') return;
+    if (el.classList.contains('maximized')) return;
+    sx = e.clientX; sy = e.clientY;
+    ox = el.offsetLeft; oy = el.offsetTop;
+    el.style.zIndex = ++zIndex;
+    function move(e) {
+      el.style.left = (ox + e.clientX - sx) + 'px';
+      el.style.top = Math.max(0, oy + e.clientY - sy) + 'px';
+    }
+    function up() {
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', up);
+    }
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', up);
+  });
+}
+
+function setActiveTask(id) {
+  activeWinId = id;
+  document.querySelectorAll('.taskbar-btn[data-id]').forEach(t => {
+    t.classList.toggle('active', t.dataset.id === id);
+  });
+}
+
+function updateTaskbar() {
+  const cont = document.getElementById('taskbarItems');
+  cont.innerHTML = '';
+  const seen = new Set();
+  windows.forEach((w, id) => {
+    if (seen.has(w.app)) return;
+    seen.add(w.app);
+    const btn = document.createElement('button');
+    btn.className = 'taskbar-btn running';
+    btn.dataset.app = w.app;
+    btn.dataset.id = id;
+    btn.title = w.title;
+    btn.textContent = w.icon;
+    btn.onclick = () => {
+      const wWins = [...windows.entries()].filter(([_, x]) => x.app === w.app);
+      const visible = wWins.filter(([_, x]) => x.el.style.display !== 'none');
+      if (visible.length) {
+        visible.forEach(([_, x]) => x.el.style.display = 'none');
+        updateTaskbar();
+      } else {
+        wWins.forEach(([iid, x]) => {
+          x.el.style.display = 'flex';
+          x.el.style.zIndex = ++zIndex;
+          setActiveTask(iid);
+        });
+      }
+    };
+    if (activeWinId && windows.get(activeWinId) && windows.get(activeWinId).app === w.app) {
+      btn.classList.add('active');
+    }
+    cont.appendChild(btn);
+  });
+
+  const grid = document.getElementById('taskViewGrid');
+  grid.innerHTML = '';
+  windows.forEach((w, id) => {
+    const card = document.createElement('div');
+    card.className = 'task-view-card';
+    card.innerHTML = `
+      <div class="card-header"><span>${w.icon}</span> ${w.title}</div>
+      <div class="card-body">${w.icon}</div>
+    `;
+    card.onclick = () => {
+      document.getElementById('taskView').classList.remove('open');
+      w.el.style.display = 'flex';
+      w.el.style.zIndex = ++zIndex;
+      setActiveTask(id);
+    };
+    grid.appendChild(card);
+  });
+}
+
+// ================= RELOJ =================
+function updateClock() {
+  const d = new Date();
+  document.querySelector('#clock .time').textContent =
+    `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+  document.querySelector('#clock .date').textContent =
+    `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}`;
+}
+setInterval(updateClock, 1000); updateClock();
+
+// ================= EJECUTAR PROGRAMA HTML =================
+// Abre un archivo HTML en una ventana sandbox (iframe con srcdoc)
+function runHtmlProgram(node, name, fullPath) {
+  const html = getTextContent(node);
+  createWindow({
+    title: name, icon: '🌐', width: 780, height: 560, app: 'htmlexec-' + name,
+    contentBuilder: (b) => {
+      const bar = document.createElement('div');
+      bar.className = 'toolbar';
+      bar.innerHTML = `
+        <button id="reload">🔄 Recargar</button>
+        <button id="edit">✏️ Editar código</button>
+        <button id="download">⬇️ Descargar</button>
+        <span style="margin-left:auto;font-size:11px;color:#666">Ejecutando: ${name}</span>
+      `;
+      const iframe = document.createElement('iframe');
+      // sandbox permite ejecutar scripts pero no acceder al sistema
+      iframe.setAttribute('sandbox', 'allow-scripts allow-forms allow-modals allow-popups allow-same-origin');
+      iframe.style.cssText = 'flex:1;border:none;background:#fff;';
+      iframe.srcdoc = html;
+      b.append(bar, iframe);
+
+      bar.querySelector('#reload').onclick = () => { iframe.srcdoc = iframe.srcdoc; };
+      bar.querySelector('#edit').onclick = () => openCodeStudio(name, html, fullPath);
+      bar.querySelector('#download').onclick = () => {
+        const blob = new Blob([html], { type: 'text/html' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = name.endsWith('.html') ? name : name + '.html';
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      };
+    }
+  });
+}
+
+// ================= ABRIR ARCHIVO SEGÚN TIPO =================
+function openNode(node, name, fullPath) {
+  if (!node) return;
+  if (node.type === 'folder') { openFileManager(fullPath); return; }
+  const type = getFileType(name, node.mime);
+
+  if (type === 'html') { runHtmlProgram(node, name, fullPath); return; }
+
+  if (type === 'image') {
+    createWindow({
+      title: name, icon: '🖼️', width: 720, height: 520, app: 'viewer-' + name,
+      contentBuilder: (b) => {
+        b.style.background = '#222';
+        const bar = document.createElement('div');
+        bar.className = 'toolbar';
+        bar.innerHTML = `<button id="dlImg">⬇️ Descargar</button><span style="font-size:11px;color:#666;margin-left:auto">${name}</span>`;
+        const view = document.createElement('div');
+        view.style.cssText = 'flex:1;display:flex;align-items:center;justify-content:center;overflow:auto;padding:8px;';
+        const img = document.createElement('img');
+        img.src = node.content;
+        img.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain;cursor:zoom-in;';
+        img.onclick = () => { img.style.maxWidth = img.style.maxWidth === 'none' ? '100%' : 'none'; img.style.maxHeight = img.style.maxHeight === 'none' ? '100%' : 'none'; };
+        view.appendChild(img);
+        bar.querySelector('#dlImg').onclick = () => downloadFileFromSystem(node, name);
+        b.append(bar, view);
+      }
+    });
+  } else if (type === 'video') {
+    createWindow({
+      title: name, icon: '🎬', width: 720, height: 500, app: 'video-' + name,
+      contentBuilder: (b) => {
+        const bar = document.createElement('div');
+        bar.className = 'toolbar';
+        bar.innerHTML = `<button id="dlVid">⬇️ Descargar</button>`;
+        const view = document.createElement('div');
+        view.style.cssText = 'flex:1;display:flex;align-items:center;justify-content:center;background:#000;';
+        const video = document.createElement('video');
+        video.src = node.content; video.controls = true; video.autoplay = true;
+        video.style.cssText = 'max-width:100%;max-height:100%';
+        view.appendChild(video);
+        bar.querySelector('#dlVid').onclick = () => downloadFileFromSystem(node, name);
+        b.append(bar, view);
+      }
+    });
+  } else if (type === 'audio') {
+    createWindow({
+      title: name, icon: '🎵', width: 500, height: 180, app: 'audio-' + name,
+      contentBuilder: (b) => {
+        b.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;background:#222;color:#fff;padding:20px;';
+        const title = document.createElement('div');
+        title.textContent = '🎵 ' + name;
+        title.style.cssText = 'font-size:14px;margin-bottom:16px;';
+        const audio = document.createElement('audio');
+        audio.src = node.content; audio.controls = true; audio.autoplay = true;
+        audio.style.width = '100%';
+        b.append(title, audio);
+      }
+    });
+  } else if (type === 'text') {
+    createWindow({
+      title: name, icon: '📄', width: 640, height: 480, app: 'text-' + name,
+      contentBuilder: (b) => {
+        const bar = document.createElement('div');
+        bar.className = 'toolbar';
+        bar.innerHTML = `<button id="saveTxt">💾 Guardar</button><button id="dlTxt">⬇️ Descargar</button>`;
+        const ta = document.createElement('textarea');
+        ta.style.cssText = 'flex:1;border:none;padding:12px;font-family:Consolas,monospace;resize:none;font-size:13px;outline:none;';
+        ta.value = getTextContent(node);
+        bar.querySelector('#saveTxt').onclick = () => {
+          node.content = ta.value;
+          node.mime = 'text/plain';
+          try { saveFS(); notify('Guardado', name); } catch(e) { notify('Error', 'No se pudo guardar'); }
+        };
+        bar.querySelector('#dlTxt').onclick = () => downloadFileFromSystem({ ...node, content: ta.value }, name);
+        b.append(bar, ta);
+      }
+    });
+  } else {
+    createWindow({
+      title: name, icon: '📦', width: 440, height: 260, app: 'file-' + name,
+      contentBuilder: (b) => {
+        b.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;text-align:center;color:#333;';
+        b.innerHTML = `
+          <div style="font-size:60px;margin-bottom:10px">📦</div>
+          <div style="font-size:14px;font-weight:600;margin-bottom:6px">${name}</div>
+          <div style="font-size:12px;color:#666;margin-bottom:16px">Tipo: ${node.mime || 'desconocido'}</div>
+          <button id="dlGeneric" style="padding:8px 16px;border:1px solid #0078d4;background:#0078d4;color:#fff;border-radius:4px;cursor:pointer;font-size:12px;">⬇️ Descargar</button>
+        `;
+        b.querySelector('#dlGeneric').onclick = () => downloadFileFromSystem(node, name);
+      }
+    });
+  }
+}
+
+// ================= ICONOS DEL ESCRITORIO =================
+function renderDesktopIcons() {
+  const cont = document.getElementById('desktopIcons');
+  cont.innerHTML = '';
+
+  const fixedIcons = [
+    { emoji: '🖥️', label: 'Este equipo', action: () => openFileManager([]) },
+    { emoji: '🗑️', label: 'Papelera', action: () => notify('Papelera', 'La papelera está vacía') },
+  ];
+  fixedIcons.forEach(icon => {
+    const d = document.createElement('div');
+    d.className = 'desktop-icon';
+    d.innerHTML = `<span class="emoji">${icon.emoji}</span><span>${icon.label}</span>`;
+    d.onclick = (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('.desktop-icon').forEach(x => x.classList.remove('selected'));
+      d.classList.add('selected');
+    };
+    d.ondblclick = icon.action;
+    cont.appendChild(d);
+  });
+
+  const deskNode = fs.root.children['Escritorio'];
+  if (deskNode && deskNode.children) {
+    Object.entries(deskNode.children).forEach(([name, item]) => {
+      const d = document.createElement('div');
+      d.className = 'desktop-icon';
+      const type = getFileType(name, item.mime);
+      let iconHtml;
+      if (item.type === 'folder') iconHtml = `<span class="emoji">📁</span>`;
+      else if (type === 'image' && item.content.startsWith('data:image')) {
+        iconHtml = `<img class="thumb" src="${item.content}" style="width:64px;height:48px;object-fit:cover;border-radius:3px;margin:0 auto 4px;display:block;border:1px solid rgba(255,255,255,.3)">`;
+      } else iconHtml = `<span class="emoji">${getIconForFile(name, item.mime, item)}</span>`;
+      d.innerHTML = `${iconHtml}<span>${name}</span>`;
+      d.onclick = (e) => {
+        e.stopPropagation();
+        document.querySelectorAll('.desktop-icon').forEach(x => x.classList.remove('selected'));
+        d.classList.add('selected');
+      };
+      d.ondblclick = () => openNode(item, name, ['Escritorio', name]);
+      d.oncontextmenu = (e) => {
+        e.preventDefault();
+        showContextMenu(e.clientX, e.clientY, [
+          { icon: '📂', label: 'Abrir', action: () => openNode(item, name, ['Escritorio', name]) },
+          { icon: type === 'html' ? '▶️' : '⬇️', label: type === 'html' ? 'Ejecutar' : 'Descargar',
+            disabled: item.type === 'folder',
+            action: () => type === 'html' ? runHtmlProgram(item, name, ['Escritorio', name]) : downloadFileFromSystem(item, name) },
+          { icon: '✏️', label: 'Editar código', disabled: type !== 'html', action: () => openCodeStudio(name, getTextContent(item), ['Escritorio', name]) },
+          { type: 'divider' },
+          { icon: '📋', label: 'Copiar', shortcut: 'Ctrl+C', action: () => clipboardCopy([['Escritorio', name]]) },
+          { icon: '✂️', label: 'Cortar', shortcut: 'Ctrl+X', action: () => clipboardCut([['Escritorio', name]]) },
+          { icon: '📌', label: 'Pegar', disabled: !fsClipboard.items.length, action: () => { clipboardPaste(['Escritorio']); renderDesktopIcons(); } },
+          { type: 'divider' },
+          { icon: '✏️', label: 'Renombrar', action: async () => {
+            const newName = await askInput('Nuevo nombre:', name);
+            if (newName && newName !== name) {
+              deskNode.children[newName] = deskNode.children[name];
+              delete deskNode.children[name];
+              saveFS(); renderDesktopIcons();
+            }
+          }},
+          { icon: '🗑️', label: 'Eliminar', action: () => {
+            if (confirm(`¿Eliminar "${name}"?`)) {
+              delete deskNode.children[name];
+              saveFS(); renderDesktopIcons();
+            }
+          }},
+        ]);
+      };
+      cont.appendChild(d);
+    });
+  }
+
+  // Accesos directos de apps
+  const appShortcuts = [
+    { emoji: '📁', label: 'Archivos', action: () => openFileManager() },
+    { emoji: '💻', label: 'Code Studio', action: () => openCodeStudio() },
+    { emoji: '🌐', label: 'Navegador', action: () => openBrowser() },
+    { emoji: '🎨', label: 'Paint', action: () => openPaint() },
+    { emoji: '📝', label: 'Word', action: () => openWord() },
+  ];
+  appShortcuts.forEach(icon => {
+    const d = document.createElement('div');
+    d.className = 'desktop-icon';
+    d.innerHTML = `<span class="emoji">${icon.emoji}</span><span>${icon.label}</span>`;
+    d.onclick = (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('.desktop-icon').forEach(x => x.classList.remove('selected'));
+      d.classList.add('selected');
+    };
+    d.ondblclick = icon.action;
+    cont.appendChild(d);
+  });
+}
+renderDesktopIcons();
+
+// ================= MENÚ INICIO =================
+const startApps = [
+  { emoji: '📁', label: 'Archivos', app: 'files', action: () => openFileManager() },
+  { emoji: '💻', label: 'Code Studio', action: () => openCodeStudio() },
+  { emoji: '🖼️', label: 'Imágenes', action: () => openImageViewer() },
+  { emoji: '🎬', label: 'Videos', action: () => openVideoPlayer() },
+  { emoji: '🌐', label: 'Navegador', action: () => openBrowser() },
+  { emoji: '🎨', label: 'Paint', action: () => openPaint() },
+  { emoji: '📝', label: 'Word', action: () => openWord() },
+  { emoji: '⚙️', label: 'Configuración', action: () => openSettings() },
+  { emoji: '🧮', label: 'Calculadora', action: () => openCalculator() },
+  { emoji: '⏰', label: 'Reloj', action: () => openClockApp() },
+  { emoji: '📅', label: 'Calendario', action: () => notify('Calendario', 'Próximamente') },
+  { emoji: '📷', label: 'Cámara', action: () => notify('Cámara', 'Próximamente') },
+];
+function renderStartGrid(filter = '') {
+  const grid = document.getElementById('startGrid');
+  grid.innerHTML = '';
+  startApps.filter(a => a.label.toLowerCase().includes(filter.toLowerCase())).forEach(app => {
+    const d = document.createElement('div');
+    d.className = 'start-app';
+    d.innerHTML = `<div class="emoji">${app.emoji}</div><div>${app.label}</div>`;
+    d.onclick = () => { app.action(); closeStartMenu(); };
+    grid.appendChild(d);
+  });
+}
+renderStartGrid();
+
+const startBtn = document.getElementById('startBtn');
+const startMenu = document.getElementById('startMenu');
+function openStartMenu() { startMenu.classList.add('open'); document.getElementById('taskView').classList.remove('open'); }
+function closeStartMenu() { startMenu.classList.remove('open'); }
+function toggleStartMenu() { startMenu.classList.contains('open') ? closeStartMenu() : openStartMenu(); }
+startBtn.onclick = (e) => { e.stopPropagation(); toggleStartMenu(); };
+document.addEventListener('click', (e) => {
+  if (!startMenu.contains(e.target) && e.target !== startBtn) closeStartMenu();
+});
+startMenu.addEventListener('click', e => e.stopPropagation());
+document.querySelector('#startMenu .search').addEventListener('input', (e) => renderStartGrid(e.target.value));
+
+document.getElementById('powerBtn').onclick = () => {
+  if (confirm('¿Apagar el sistema?')) {
+    document.body.style.transition = 'opacity 1s';
+    document.body.style.opacity = '0';
+    setTimeout(() => location.reload(), 1000);
+  }
+};
+document.getElementById('wifiIcon').onclick = () => notify('WiFi', 'Conectado');
+document.getElementById('volumeIcon').onclick = () => notify('Volumen', '75%');
+document.getElementById('clock').onclick = () => notify('Fecha y hora', new Date().toLocaleString());
+document.getElementById('taskView').addEventListener('click', (e) => {
+  if (e.target.id === 'taskView') document.getElementById('taskView').classList.remove('open');
+});
+
+// ================= MENÚ CONTEXTUAL =================
+const ctxMenu = document.getElementById('ctxMenu');
+function showContextMenu(x, y, items) {
+  ctxMenu.innerHTML = '';
+  items.forEach(it => {
+    if (it.type === 'divider') {
+      const d = document.createElement('div'); d.className = 'divider'; ctxMenu.appendChild(d); return;
+    }
+    const d = document.createElement('div');
+    d.className = 'item' + (it.disabled ? ' disabled' : '');
+    d.innerHTML = `<span>${it.icon || ''} ${it.label}</span>${it.shortcut ? `<span class="shortcut">${it.shortcut}</span>` : ''}`;
+    if (!it.disabled) d.onclick = () => { hideContextMenu(); it.action && it.action(); };
+    ctxMenu.appendChild(d);
+  });
+  ctxMenu.style.display = 'block';
+  const rect = ctxMenu.getBoundingClientRect();
+  if (x + rect.width > window.innerWidth) x = window.innerWidth - rect.width - 8;
+  if (y + rect.height > window.innerHeight) y = window.innerHeight - rect.height - 8;
+  ctxMenu.style.left = x + 'px';
+  ctxMenu.style.top = y + 'px';
+}
+function hideContextMenu() { ctxMenu.style.display = 'none'; }
+document.addEventListener('click', hideContextMenu);
+
+document.getElementById('desktop').addEventListener('contextmenu', (e) => {
+  if (e.target.closest('.window') || e.target.closest('.desktop-icon')) return;
+  e.preventDefault();
+  showContextMenu(e.clientX, e.clientY, [
+    { icon: '🔄', label: 'Actualizar', action: () => { renderDesktopIcons(); notify('Escritorio', 'Actualizado'); } },
+    { type: 'divider' },
+    { icon: '📋', label: 'Pegar', shortcut: 'Ctrl+V', disabled: !fsClipboard.items.length, action: () => { clipboardPaste(['Escritorio']); renderDesktopIcons(); } },
+    { icon: '📁', label: 'Nueva carpeta', action: async () => {
+      const name = await askInput('Nombre:', 'Nueva carpeta');
+      if (!name) return;
+      fs.root.children['Escritorio'].children[name] = { type: 'folder', children: {} };
+      saveFS(); renderDesktopIcons();
+    }},
+    { icon: '💻', label: 'Nuevo programa HTML', action: async () => {
+      const name = await askInput('Nombre del programa:', 'mi-programa.html');
+      if (!name) return;
+      const finalName = name.endsWith('.html') ? name : name + '.html';
+      fs.root.children['Escritorio'].children[finalName] = {
+        type: 'file', mime: 'text/html',
+        content: `<!DOCTYPE html>\n<html>\n<head><meta charset="UTF-8"><title>Mi Programa</title></head>\n<body>\n  <h1>¡Hola Mundo!</h1>\n  <p>Edita este código desde Code Studio.</p>\n</body>\n</html>`
+      };
+      saveFS(); renderDesktopIcons();
+      openCodeStudio(finalName, fs.root.children['Escritorio'].children[finalName].content, ['Escritorio', finalName]);
+    }},
+    { icon: '📤', label: 'Importar archivo...', action: () => triggerImport(['Escritorio']) },
+    { type: 'divider' },
+    { icon: '⚙️', label: 'Configuración', action: () => openSettings() },
+  ]);
+});
+
+document.getElementById('taskbar').addEventListener('contextmenu', (e) => {
+  if (e.target.closest('.taskbar-btn')) return;
+  e.preventDefault();
+  showContextMenu(e.clientX, e.clientY, [
+    { icon: '🖥️', label: 'Administrador de tareas', action: () => document.getElementById('taskView').classList.add('open') },
+    { icon: '⚙️', label: 'Configuración', action: () => openSettings() },
+  ]);
+});
+
+// ================= IMPORTAR =================
+function triggerImport(targetPath, multiple = true) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.multiple = multiple;
+  input.style.display = 'none';
+  document.body.appendChild(input);
+  input.onchange = async () => {
+    const files = [...input.files];
+    if (!files.length) { input.remove(); return; }
+    let count = 0;
+    for (const file of files) {
+      try { await importFileToSystem(file, targetPath); count++; }
+      catch (err) { notify('Error', `No se pudo importar ${file.name}: ${err}`); }
+    }
+    input.remove();
+    if (count > 0) {
+      notify('Importación', `${count} archivo(s) importado(s)`);
+      refreshAllFileManagers(); renderDesktopIcons();
+    }
+  };
+  input.click();
+}
+
+// ================= FILE MANAGER =================
+function openFileManager(startPath = []) {
+  const existing = [...windows.values()].find(w => w.app === 'files');
+  if (existing) { existing.el.style.display = 'flex'; existing.el.style.zIndex = ++zIndex; return; }
+
+  createWindow({
+    title: 'Explorador de archivos', icon: '📁',
+    width: 780, height: 520, app: 'files',
+    contentBuilder: (body) => {
+      let currentPath = [...startPath];
+      let selectedNames = new Set();
+
+      const build = () => {
+        body.innerHTML = '';
+        body._currentPath = currentPath;
+        const node = getNode(currentPath);
+        if (!node || node.type !== 'folder') {
+          body.innerHTML = '<div style="padding:20px">Ruta inválida</div>';
+          return;
+        }
+
+        const toolbar = document.createElement('div');
+        toolbar.className = 'toolbar';
+
+        const btnBack = document.createElement('button');
+        btnBack.textContent = '⬅'; btnBack.title = 'Atrás';
+        btnBack.onclick = () => { if (currentPath.length > 0) { currentPath = currentPath.slice(0, -1); selectedNames.clear(); build(); } };
+        const btnUp = document.createElement('button');
+        btnUp.textContent = '⬆'; btnUp.title = 'Subir';
+        btnUp.onclick = () => { currentPath = []; selectedNames.clear(); build(); };
+        const btnRefresh = document.createElement('button');
+        btnRefresh.textContent = '🔄'; btnRefresh.title = 'Actualizar';
+        btnRefresh.onclick = build;
+
+        const sep1 = document.createElement('div'); sep1.className = 'sep';
+
+        const btnNewFolder = document.createElement('button');
+        btnNewFolder.textContent = '📁 Nueva carpeta';
+        btnNewFolder.onclick = async () => {
+          const name = await askInput('Nombre:');
+          if (name) {
+            if (node.children[name]) return notify('Error', 'Ya existe');
+            node.children[name] = { type: 'folder', children: {} };
+            saveFS(); build();
+          }
+        };
+        const btnNewText = document.createElement('button');
+        btnNewText.textContent = '📄 Nuevo texto';
+        btnNewText.onclick = async () => {
+          const name = await askInput('Nombre:', 'nuevo.txt');
+          if (name) {
+            if (node.children[name]) return notify('Error', 'Ya existe');
+            node.children[name] = { type: 'file', content: '', mime: 'text/plain' };
+            saveFS(); build();
+          }
+        };
+        const btnNewHtml = document.createElement('button');
+        btnNewHtml.textContent = '🌐 Nuevo programa HTML';
+        btnNewHtml.style.background = '#e8f0ff';
+        btnNewHtml.style.borderColor = '#0078d4';
+        btnNewHtml.onclick = async () => {
+          const name = await askInput('Nombre del programa:', 'programa.html');
+          if (!name) return;
+          const finalName = name.endsWith('.html') ? name : name + '.html';
+          if (node.children[finalName]) return notify('Error', 'Ya existe');
+          const template = `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset="UTF-8">\n  <title>${finalName.replace('.html','')}</title>\n  <style>\n    body { font-family: Arial; padding: 20px; background: #f0f0f0; }\n    h1 { color: #0078d4; }\n  </style>\n</head>\n<body>\n  <h1>¡Hola desde ${finalName}!</h1>\n  <p>Este programa se ejecuta en WinWeb OS.</p>\n  <button onclick="alert('¡Funciona!')">Probar JS</button>\n</body>\n</html>`;
+          node.children[finalName] = { type: 'file', mime: 'text/html', content: template };
+          saveFS(); build();
+          openCodeStudio(finalName, template, [...currentPath, finalName]);
+        };
+        const btnImport = document.createElement('button');
+        btnImport.textContent = '📤 Importar';
+        btnImport.style.background = '#e8f5e8';
+        btnImport.style.borderColor = '#4caf50';
+        btnImport.onclick = () => triggerImport(currentPath);
+
+        const sep2 = document.createElement('div'); sep2.className = 'sep';
+
+        const btnCopy = document.createElement('button');
+        btnCopy.textContent = '📋'; btnCopy.title = 'Copiar';
+        btnCopy.disabled = selectedNames.size === 0;
+        btnCopy.onclick = () => { clipboardCopy([...selectedNames].map(n => [...currentPath, n])); build(); };
+        const btnCut = document.createElement('button');
+        btnCut.textContent = '✂️'; btnCut.title = 'Cortar';
+        btnCut.disabled = selectedNames.size === 0;
+        btnCut.onclick = () => { clipboardCut([...selectedNames].map(n => [...currentPath, n])); selectedNames.clear(); build(); };
+        const btnPaste = document.createElement('button');
+        btnPaste.textContent = '📌'; btnPaste.title = 'Pegar';
+        btnPaste.disabled = !fsClipboard.items.length;
+        btnPaste.onclick = () => { clipboardPaste(currentPath); build(); renderDesktopIcons(); };
+
+        const sep3 = document.createElement('div'); sep3.className = 'sep';
+
+        const btnDelete = document.createElement('button');
+        btnDelete.textContent = '🗑️';
+        btnDelete.disabled = selectedNames.size === 0;
+        btnDelete.onclick = () => {
+          if (!selectedNames.size) return;
+          if (!confirm(`¿Eliminar ${selectedNames.size} elemento(s)?`)) return;
+          selectedNames.forEach(n => delete node.children[n]);
+          saveFS(); selectedNames.clear(); build(); renderDesktopIcons();
+        };
+        const btnRename = document.createElement('button');
+        btnRename.textContent = '✏️';
+        btnRename.disabled = selectedNames.size !== 1;
+        btnRename.onclick = async () => {
+          const name = [...selectedNames][0];
+          const newName = await askInput('Nuevo nombre:', name);
+          if (newName && newName !== name) {
+            node.children[newName] = node.children[name];
+            delete node.children[name];
+            saveFS(); selectedNames.clear(); build(); renderDesktopIcons();
+          }
+        };
+        const btnDownload = document.createElement('button');
+        btnDownload.textContent = '⬇️';
+        btnDownload.title = 'Descargar';
+        btnDownload.disabled = selectedNames.size !== 1;
+        btnDownload.onclick = () => {
+          const name = [...selectedNames][0];
+          const item = node.children[name];
+          if (item.type === 'folder') return notify('Error', 'No puedes descargar una carpeta');
+          downloadFileFromSystem(item, name);
+        };
+
+        toolbar.append(btnBack, btnUp, btnRefresh, sep1, btnNewFolder, btnNewText, btnNewHtml, btnImport,
+          sep2, btnCopy, btnCut, btnPaste, sep3, btnDelete, btnRename, btnDownload);
+        body.appendChild(toolbar);
+
+        const pathEl = document.createElement('div');
+        pathEl.className = 'fm-path';
+        const homeCrumb = document.createElement('span');
+        homeCrumb.className = 'crumb';
+        homeCrumb.textContent = '🏠 Inicio';
+        homeCrumb.onclick = () => { currentPath = []; selectedNames.clear(); build(); };
+        pathEl.appendChild(homeCrumb);
+        currentPath.forEach((seg, i) => {
+          pathEl.appendChild(document.createTextNode('›'));
+          const c = document.createElement('span');
+          c.className = 'crumb';
+          c.textContent = seg;
+          c.onclick = () => { currentPath = currentPath.slice(0, i + 1); selectedNames.clear(); build(); };
+          pathEl.appendChild(c);
+        });
+        body.appendChild(pathEl);
+
+        const list = document.createElement('div');
+        list.className = 'fm-list';
+
+        const entries = Object.entries(node.children).sort((a, b) => {
+          if (a[1].type !== b[1].type) return a[1].type === 'folder' ? -1 : 1;
+          return a[0].localeCompare(b[0]);
+        });
+
+        entries.forEach(([name, item]) => {
+          const div = document.createElement('div');
+          div.className = 'fm-item';
+          div.dataset.name = name;
+          if (selectedNames.has(name)) div.classList.add('selected');
+          const fullPath = [...currentPath, name].join('/');
+          const inClip = fsClipboard.items.find(it => it.path.join('/') === fullPath);
+          if (inClip) div.classList.add(fsClipboard.mode === 'cut' ? 'cut' : 'copied');
+
+          let inner;
+          const type = getFileType(name, item.mime);
+          if (item.type === 'folder') inner = `<span class="emoji">📁</span>`;
+          else if (type === 'image' && item.content && item.content.startsWith('data:image')) {
+            inner = `<img class="thumb" src="${item.content}" alt="">`;
+          } else inner = `<span class="emoji">${getIconForFile(name, item.mime, item)}</span>`;
+          div.innerHTML = `${inner}<span>${name}</span>`;
+
+          div.draggable = true;
+          div.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', fullPath);
+            e.dataTransfer.effectAllowed = 'copyMove';
+          });
+          if (item.type === 'folder') {
+            div.addEventListener('dragover', (e) => { e.preventDefault(); div.style.background = '#ddeeff'; });
+            div.addEventListener('dragleave', () => { div.style.background = ''; });
+            div.addEventListener('drop', (e) => {
+              e.preventDefault(); div.style.background = '';
+              const srcPath = e.dataTransfer.getData('text/plain');
+              if (!srcPath) return;
+              const srcArr = srcPath.split('/');
+              const srcParent = getParent(srcArr);
+              const srcName = srcArr[srcArr.length - 1];
+              if (!srcParent || !srcParent.children[srcName]) return;
+              if (srcArr.join('/') === [...currentPath, name].join('/')) return;
+              if (srcArr.length <= currentPath.length + 1 &&
+                  [...currentPath, name].slice(0, srcArr.length).join('/') === srcArr.join('/')) {
+                notify('Error', 'No puedes mover una carpeta dentro de sí misma'); return;
+              }
+              const newNodeName = uniqueName(item, srcName);
+              item.children[newNodeName] = srcParent.children[srcName];
+              delete srcParent.children[srcName];
+              try { saveFS(); } catch(e) { return; }
+              notify('Movido', `${srcName} → ${name}`);
+              build(); renderDesktopIcons();
+            });
+          }
+
+          div.onclick = (e) => {
+            e.stopPropagation();
+            if (e.ctrlKey || e.metaKey) {
+              if (selectedNames.has(name)) selectedNames.delete(name);
+              else selectedNames.add(name);
+            } else { selectedNames.clear(); selectedNames.add(name); }
+            build();
+          };
+          div.ondblclick = () => {
+            if (item.type === 'folder') {
+              currentPath = [...currentPath, name];
+              selectedNames.clear(); build();
+            } else openNode(item, name, [...currentPath, name]);
+          };
+          div.oncontextmenu = (e) => {
+            e.preventDefault();
+            if (!selectedNames.has(name)) { selectedNames.clear(); selectedNames.add(name); build(); }
+            const multi = selectedNames.size > 1;
+            const paths = [...selectedNames].map(n => [...currentPath, n]);
+            showContextMenu(e.clientX, e.clientY, [
+              { icon: '📂', label: 'Abrir', action: () => div.ondblclick() },
+              { icon: '▶️', label: 'Ejecutar', disabled: type !== 'html', action: () => runHtmlProgram(item, name, [...currentPath, name]) },
+              { icon: '✏️', label: 'Editar código', disabled: type !== 'html', action: () => openCodeStudio(name, getTextContent(item), [...currentPath, name]) },
+              { icon: '⬇️', label: 'Descargar', disabled: multi || item.type === 'folder', action: () => downloadFileFromSystem(item, name) },
+              { type: 'divider' },
+              { icon: '📋', label: 'Copiar', shortcut: 'Ctrl+C', action: () => { clipboardCopy(paths); build(); } },
+              { icon: '✂️', label: 'Cortar', shortcut: 'Ctrl+X', action: () => { clipboardCut(paths); selectedNames.clear(); build(); } },
+              { icon: '📌', label: 'Pegar', shortcut: 'Ctrl+V', disabled: !fsClipboard.items.length,
+                action: () => { clipboardPaste(currentPath); build(); renderDesktopIcons(); } },
+              { type: 'divider' },
+              { icon: '✏️', label: 'Renombrar', disabled: multi, action: async () => {
+                const newName = await askInput('Nuevo nombre:', name);
+                if (newName && newName !== name) {
+                  node.children[newName] = node.children[name];
+                  delete node.children[name];
+                  saveFS(); selectedNames.clear(); build(); renderDesktopIcons();
+                }
+              }},
+              { icon: '🗑️', label: multi ? `Eliminar ${selectedNames.size}` : 'Eliminar', action: () => {
+                if (!confirm(`¿Eliminar ${selectedNames.size} elemento(s)?`)) return;
+                selectedNames.forEach(n => delete node.children[n]);
+                saveFS(); selectedNames.clear(); build(); renderDesktopIcons();
+              }},
+            ]);
+          };
+          list.appendChild(div);
+        });
+
+        list.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          if (e.target === list) list.classList.add('dragover');
+        });
+        list.addEventListener('dragleave', (e) => {
+          if (e.target === list) list.classList.remove('dragover');
+        });
+        list.addEventListener('drop', (e) => {
+          if (e.target !== list) return;
+          e.preventDefault();
+          list.classList.remove('dragover');
+          if (e.dataTransfer.files && e.dataTransfer.files.length) {
+            (async () => {
+              let count = 0;
+              for (const file of e.dataTransfer.files) {
+                try { await importFileToSystem(file, currentPath); count++; } catch(err) {}
+              }
+              if (count) { notify('Importación', `${count} archivo(s)`); build(); renderDesktopIcons(); }
+            })();
+            return;
+          }
+          const srcPath = e.dataTransfer.getData('text/plain');
+          if (!srcPath) return;
+          const srcArr = srcPath.split('/');
+          const srcParent = getParent(srcArr);
+          const srcName = srcArr[srcArr.length - 1];
+          if (!srcParent || !srcParent.children[srcName]) return;
+          const newNodeName = uniqueName(node, srcName);
+          node.children[newNodeName] = srcParent.children[srcName];
+          delete srcParent.children[srcName];
+          try { saveFS(); } catch(e) { return; }
+          notify('Movido', `${srcName} → esta carpeta`);
+          build(); renderDesktopIcons();
+        });
+
+        list.onclick = (e) => {
+          if (e.target === list) { selectedNames.clear(); build(); }
+        };
+
+        body.appendChild(list);
+        list._refresh = build;
+
+        const status = document.createElement('div');
+        status.className = 'fm-status';
+        const folders = entries.filter(([,v]) => v.type === 'folder').length;
+        const files = entries.length - folders;
+        let clipText = fsClipboard.items.length ? ` · Portapapeles: ${fsClipboard.items.length} ${fsClipboard.mode === 'cut' ? 'para mover' : 'para copiar'}` : '';
+        status.innerHTML = `<span>${folders} carpeta(s), ${files} archivo(s)</span><span class="clipboard-info">${clipText}</span>`;
+        body.appendChild(status);
+      };
+      build();
+    }
+  });
+}
+
+// ================= CODE STUDIO (editor de programas HTML) =================
+// Abre un editor con panel de código + panel de vista previa en vivo
+function openCodeStudio(preloadName = null, preloadCode = null, preloadPath = null) {
+  createWindow({
+    title: 'Code Studio - Editor HTML', icon: '💻',
+    width: 1000, height: 620, app: 'code-studio',
+    contentBuilder: (body) => {
+      body.innerHTML = '';
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'display:flex;flex-direction:column;height:100%;';
+
+      const toolbar = document.createElement('div');
+      toolbar.className = 'toolbar';
+      toolbar.innerHTML = `
+        <button id="newBtn">📄 Nuevo</button>
+        <button id="openBtn">📂 Abrir</button>
+        <button id="saveBtn">💾 Guardar</button>
+        <button id="runBtn" style="background:#4caf50;color:#fff;border-color:#4caf50">▶️ Ejecutar</button>
+        <div class="sep"></div>
+        <button id="autoRunBtn" class="active">⚡ Auto</button>
+        <button id="downloadBtn">⬇️ Descargar</button>
+        <span style="margin-left:auto;font-size:11px;color:#666" id="statusLabel">Sin guardar</span>
+      `;
+
+      const split = document.createElement('div');
+      split.className = 'code-editor-split';
+
+      // Panel izquierdo: código
+      const leftPane = document.createElement('div');
+      leftPane.className = 'code-editor-pane';
+      leftPane.style.width = '50%';
+      const leftHeader = document.createElement('div');
+      leftHeader.className = 'code-pane-header';
+      leftHeader.textContent = '📝 Código HTML';
+      const editor = document.createElement('textarea');
+      editor.className = 'code-editor-area';
+      editor.spellcheck = false;
+      editor.value = preloadCode || `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Mi Programa</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      flex-direction: column;
+    }
+    h1 { font-size: 48px; margin-bottom: 10px; }
+    button {
+      padding: 12px 24px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      background: #fff;
+      color: #333;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+    button:hover { background: #f0f0f0; }
+  </style>
+</head>
+<body>
+  <h1>¡Hola WinWeb OS!</h1>
+  <p>Este es mi primer programa HTML.</p>
+  <button onclick="alert('¡Funciona!')">Click aquí</button>
+</body>
+</html>`;
+      leftPane.append(leftHeader, editor);
+
+      // Panel derecho: vista previa
+      const rightPane = document.createElement('div');
+      rightPane.className = 'code-editor-pane';
+      rightPane.style.width = '50%';
+      const rightHeader = document.createElement('div');
+      rightHeader.className = 'code-pane-header';
+      rightHeader.textContent = '▶️ Vista previa';
+      const preview = document.createElement('iframe');
+      preview.className = 'code-preview-frame';
+      preview.setAttribute('sandbox', 'allow-scripts allow-forms allow-modals allow-popups allow-same-origin');
+      rightPane.append(rightHeader, preview);
+
+      split.append(leftPane, rightPane);
+      wrap.append(toolbar, split);
+      body.appendChild(wrap);
+
+      let currentName = preloadName || 'mi-programa.html';
+      let currentPath = preloadPath ? [...preloadPath] : null;
+      let autoRun = true;
+      let autoRunTimer = null;
+
+      function updateStatus() {
+        toolbar.querySelector('#statusLabel').textContent = currentPath ? '📁 ' + currentPath.join('/') : 'Sin guardar';
+      }
+      updateStatus();
+
+      function runPreview() {
+        preview.srcdoc = editor.value;
+      }
+
+      // Auto ejecutar mientras escribe (con debounce)
+      editor.addEventListener('input', () => {
+        if (!autoRun) return;
+        clearTimeout(autoRunTimer);
+        autoRunTimer = setTimeout(runPreview, 600);
+      });
+
+      // Ejecutar inicial
+      setTimeout(runPreview, 100);
+
+      // Nuevo
+      toolbar.querySelector('#newBtn').onclick = async () => {
+        if (!confirm('¿Crear nuevo programa? Se perderá el actual si no está guardado.')) return;
+        const name = await askInput('Nombre del programa:', 'programa.html');
+        if (!name) return;
+        currentName = name.endsWith('.html') ? name : name + '.html';
+        currentPath = null;
+        editor.value = `<!DOCTYPE html>\n<html>\n<head><meta charset="UTF-8"><title>${currentName}</title></head>\n<body>\n  <h1>Nuevo Programa</h1>\n</body>\n</html>`;
+        runPreview(); updateStatus();
+      };
+
+      // Abrir
+      toolbar.querySelector('#openBtn').onclick = async () => {
+        const name = await askInput('Nombre del archivo HTML:', currentName);
+        if (!name) return;
+        // Buscar en Programas primero, luego Documentos, luego Escritorio
+        const folders = ['Programas', 'Documentos', 'Escritorio'];
+        for (const folderName of folders) {
+          const folder = fs.root.children[folderName];
+          if (folder && folder.children[name]) {
+            const item = folder.children[name];
+            currentName = name;
+            currentPath = [folderName, name];
+            editor.value = getTextContent(item);
+            runPreview(); updateStatus();
+            notify('Abierto', `${folderName}/${name}`);
+            return;
+          }
+        }
+        notify('Error', 'No se encontró el archivo');
+      };
+
+      // Guardar
+      toolbar.querySelector('#saveBtn').onclick = async () => {
+        if (!currentPath) {
+          const name = await askInput('Guardar como (se guarda en /Programas):', currentName);
+          if (!name) return;
+          currentName = name.endsWith('.html') ? name : name + '.html';
+          const folder = fs.root.children['Programas'];
+          const finalName = uniqueName(folder, currentName);
+          folder.children[finalName] = { type: 'file', mime: 'text/html', content: editor.value };
+          currentPath = ['Programas', finalName];
+          currentName = finalName;
+        } else {
+          const parent = getParent(currentPath);
+          if (parent) {
+            parent.children[currentPath[currentPath.length - 1]] = {
+              type: 'file', mime: 'text/html', content: editor.value
+            };
+          }
+        }
+        try {
+          saveFS();
+          notify('Guardado', 'Programa guardado en ' + currentPath.join('/'));
+          updateStatus();
+          refreshAllFileManagers(); renderDesktopIcons();
+        } catch(e) { notify('Error', 'No se pudo guardar'); }
+      };
+
+      // Ejecutar
+      toolbar.querySelector('#runBtn').onclick = runPreview;
+
+      // Auto toggle
+      toolbar.querySelector('#autoRunBtn').onclick = (e) => {
+        autoRun = !autoRun;
+        e.target.classList.toggle('active', autoRun);
+      };
+
+      // Descargar
+      toolbar.querySelector('#downloadBtn').onclick = () => {
+        const blob = new Blob([editor.value], { type: 'text/html' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = currentName;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        notify('Descarga', currentName);
+      };
+
+      // Tab en el editor
+      editor.addEventListener('keydown', (e) => {
+        if (e.key === 'Tab') {
+          e.preventDefault();
+          const start = editor.selectionStart;
+          const end = editor.selectionEnd;
+          editor.value = editor.value.substring(0, start) + '  ' + editor.value.substring(end);
+          editor.selectionStart = editor.selectionEnd = start + 2;
+        }
+        // Ctrl+S guardar
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+          e.preventDefault();
+          toolbar.querySelector('#saveBtn').click();
+        }
+        // Ctrl+Enter ejecutar
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+          e.preventDefault();
+          runPreview();
+        }
+      });
+    }
+  });
+}
+
+// ================= IMAGE VIEWER =================
+function openImageViewer() {
+  createWindow({
+    title: 'Visor de imágenes', icon: '🖼️',
+    width: 720, height: 540, app: 'images',
+    contentBuilder: (body) => {
+      body.innerHTML = '';
+      const bar = document.createElement('div');
+      bar.className = 'toolbar';
+      bar.innerHTML = `
+        <button id="pickImg">📂 Abrir imagen</button>
+        <input type="file" id="fileImg" accept="image/*" style="display:none">
+        <button id="urlImg">🌐 Desde URL</button>
+        <div class="sep"></div>
+        <button id="saveImg" disabled>💾 Guardar en el sistema</button>
+      `;
+      const view = document.createElement('div');
+      view.style.cssText = 'flex:1;display:flex;align-items:center;justify-content:center;background:#2b2b2b;overflow:hidden;';
+      view.innerHTML = '<span style="color:#888;font-size:13px">Selecciona una imagen o arrástrala aquí</span>';
+      body.append(bar, view);
+
+      let currentDataUrl = null;
+      let currentName = 'imagen';
+
+      function showImage(url, name) {
+        currentDataUrl = url; currentName = name || 'imagen';
+        view.innerHTML = `<img src="${url}" style="max-width:100%;max-height:100%;object-fit:contain">`;
+        bar.querySelector('#saveImg').disabled = false;
+      }
+
+      bar.querySelector('#pickImg').onclick = () => bar.querySelector('#fileImg').click();
+      bar.querySelector('#fileImg').onchange = (e) => {
+        const f = e.target.files[0]; if (!f) return;
+        const reader = new FileReader();
+        reader.onload = () => showImage(reader.result, f.name.replace(/\.[^.]+$/, ''));
+        reader.readAsDataURL(f);
+      };
+      bar.querySelector('#urlImg').onclick = async () => {
+        const u = await askInput('URL:', 'https://picsum.photos/600/400');
+        if (u) showImage(u, 'imagen_url');
+      };
+      bar.querySelector('#saveImg').onclick = async () => {
+        if (!currentDataUrl) return;
+        const name = await askInput('Nombre (en /Imágenes):', currentName + '.png');
+        if (!name) return;
+        const folder = fs.root.children['Imágenes'];
+        const finalName = uniqueName(folder, name);
+        folder.children[finalName] = { type: 'file', content: currentDataUrl, mime: 'image/png' };
+        try { saveFS(); notify('Guardado', `Imágenes/${finalName}`); refreshAllFileManagers(); renderDesktopIcons(); }
+        catch (e) { notify('Error', 'No se pudo guardar'); }
+      };
+    }
+  });
+}
+
+// ================= VIDEO PLAYER =================
+function openVideoPlayer() {
+  createWindow({
+    title: 'Reproductor multimedia', icon: '🎬',
+    width: 720, height: 500, app: 'video',
+    contentBuilder: (body) => {
+      body.innerHTML = '';
+      const bar = document.createElement('div');
+      bar.className = 'toolbar';
+      bar.innerHTML = `
+        <button id="pickVid">📂 Abrir archivo</button>
+        <input type="file" id="fileVid" accept="video/*" style="display:none">
+        <button id="urlVid">🌐 Desde URL</button>
+      `;
+      const view = document.createElement('div');
+      view.style.cssText = 'flex:1;display:flex;align-items:center;justify-content:center;background:#000;';
+      view.innerHTML = '<span style="color:#888;font-size:13px">Selecciona un video</span>';
+      body.append(bar, view);
+      bar.querySelector('#pickVid').onclick = () => bar.querySelector('#fileVid').click();
+      bar.querySelector('#fileVid').onchange = (e) => {
+        const f = e.target.files[0]; if (!f) return;
+        view.innerHTML = `<video src="${URL.createObjectURL(f)}" controls autoplay style="max-width:100%;max-height:100%"></video>`;
+      };
+      bar.querySelector('#urlVid').onclick = async () => {
+        const u = await askInput('URL del video:');
+        if (u) view.innerHTML = `<video src="${u}" controls autoplay style="max-width:100%;max-height:100%"></video>`;
+      };
+    }
+  });
+}
+
+// ================= BROWSER =================
+function openBrowser() {
+  createWindow({
+    title: 'Navegador', icon: '🌐',
+    width: 900, height: 580, app: 'browser',
+    contentBuilder: (body) => {
+      body.innerHTML = '';
+      const bar = document.createElement('div');
+      bar.className = 'toolbar';
+      bar.innerHTML = `
+        <button id="backBtn">⬅</button>
+        <button id="fwdBtn">➡</button>
+        <button id="reloadBtn">🔄</button>
+        <input type="text" id="urlBar" placeholder="Buscar o URL">
+        <button id="goBtn">Ir</button>
+      `;
+      const frame = document.createElement('iframe');
+      frame.style.cssText = 'flex:1;border:none;';
+      frame.src = 'https://www.google.com/search?igu=1';
+      body.append(bar, frame);
+      const history = []; let histIdx = -1;
+      const go = (url, pushHist = true) => {
+        let u = url.trim(); if (!u) return;
+        if (!/^https?:\/\//.test(u)) {
+          if (u.includes('.') && !u.includes(' ')) u = 'https://' + u;
+          else u = 'https://www.google.com/search?igu=1&q=' + encodeURIComponent(u);
+        }
+        frame.src = u; bar.querySelector('#urlBar').value = u;
+        if (pushHist) { history.push(u); histIdx = history.length - 1; }
+      };
+      bar.querySelector('#goBtn').onclick = () => go(bar.querySelector('#urlBar').value);
+      bar.querySelector('#urlBar').addEventListener('keydown', (e) => { if (e.key === 'Enter') go(bar.querySelector('#urlBar').value); });
+      bar.querySelector('#backBtn').onclick = () => { if (histIdx > 0) { histIdx--; go(history[histIdx], false); } };
+      bar.querySelector('#fwdBtn').onclick = () => { if (histIdx < history.length - 1) { histIdx++; go(history[histIdx], false); } };
+      bar.querySelector('#reloadBtn').onclick = () => frame.src = frame.src;
+      bar.querySelector('#urlBar').value = 'https://www.google.com/search?igu=1';
+      history.push('https://www.google.com/search?igu=1'); histIdx = 0;
+    }
+  });
+}
+
+// ================= PAINT =================
+function openPaint() {
+  createWindow({
+    title: 'Paint', icon: '🎨',
+    width: 900, height: 620, app: 'paint',
+    contentBuilder: (body) => {
+      body.innerHTML = '';
+      const tools = document.createElement('div');
+      tools.className = 'toolbar';
+      tools.innerHTML = `
+        <button data-tool="pen" class="active">✏️</button>
+        <button data-tool="eraser">🧽</button>
+        <button data-tool="line">📏</button>
+        <button data-tool="rect">▭</button>
+        <button data-tool="circle">◯</button>
+        <button data-tool="fill">🪣</button>
+        <span class="sep"></span>
+        <span style="font-size:12px">Color:</span>
+        <input type="color" id="paintColor" value="#0078d4" style="width:36px;height:28px;padding:0;border:1px solid #ccc;border-radius:4px">
+        <span style="font-size:12px">Grosor:</span>
+        <input type="range" id="paintSize" min="1" max="50" value="4" style="width:100px">
+        <span class="sep"></span>
+        <button id="paintOpen">📂 Abrir</button>
+        <input type="file" id="paintFile" accept="image/*" style="display:none">
+        <button id="paintSave">💾 Guardar</button>
+        <button id="paintDownload">⬇️ Descargar</button>
+        <button id="paintClear">🗑️ Limpiar</button>
+      `;
+      const canvasWrap = document.createElement('div');
+      canvasWrap.className = 'paint-canvas-wrap';
+      const canvas = document.createElement('canvas');
+      canvas.width = 800; canvas.height = 500;
+      canvasWrap.appendChild(canvas);
+      body.append(tools, canvasWrap);
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      let tool = 'pen', color = '#0078d4', size = 4, drawing = false;
+      let startX = 0, startY = 0, snapshot = null;
+
+      tools.querySelectorAll('button[data-tool]').forEach(b => {
+        b.onclick = () => {
+          tools.querySelectorAll('button[data-tool]').forEach(x => x.classList.remove('active'));
+          b.classList.add('active'); tool = b.dataset.tool;
+        };
+      });
+      tools.querySelector('#paintColor').oninput = (e) => color = e.target.value;
+      tools.querySelector('#paintSize').oninput = (e) => size = parseInt(e.target.value);
+      tools.querySelector('#paintClear').onclick = () => {
+        if (!confirm('¿Limpiar?')) return;
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      };
+      tools.querySelector('#paintOpen').onclick = () => tools.querySelector('#paintFile').click();
+      tools.querySelector('#paintFile').onchange = (e) => {
+        const f = e.target.files[0]; if (!f) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          const img = new Image();
+          img.onload = () => {
+            const maxW = 1200, maxH = 800;
+            let w = img.width, h = img.height;
+            if (w > maxW) { h = h * maxW / w; w = maxW; }
+            if (h > maxH) { w = w * maxH / h; h = maxH; }
+            canvas.width = Math.round(w); canvas.height = Math.round(h);
+            ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            notify('Paint', 'Imagen abierta');
+          };
+          img.src = reader.result;
+        };
+        reader.readAsDataURL(f);
+      };
+      tools.querySelector('#paintSave').onclick = async () => {
+        const name = await askInput('Nombre (en /Dibujos):', 'dibujo.png');
+        if (!name) return;
+        const dataUrl = canvas.toDataURL('image/png');
+        const folder = fs.root.children['Dibujos'];
+        const finalName = uniqueName(folder, name.endsWith('.png') ? name : name + '.png');
+        folder.children[finalName] = { type: 'file', content: dataUrl, mime: 'image/png' };
+        try { saveFS(); notify('Paint', `Dibujos/${finalName}`); refreshAllFileManagers(); renderDesktopIcons(); }
+        catch (e) { notify('Error', 'No se pudo guardar'); }
+      };
+      tools.querySelector('#paintDownload').onclick = () => {
+        const a = document.createElement('a');
+        a.download = 'dibujo.png'; a.href = canvas.toDataURL('image/png'); a.click();
+        notify('Descarga', 'Imagen descargada');
+      };
+
+      function getPos(e) {
+        const r = canvas.getBoundingClientRect();
+        return { x: (e.clientX - r.left) * (canvas.width / r.width), y: (e.clientY - r.top) * (canvas.height / r.height) };
+      }
+      canvas.addEventListener('mousedown', (e) => {
+        drawing = true;
+        const p = getPos(e); startX = p.x; startY = p.y;
+        ctx.strokeStyle = tool === 'eraser' ? '#ffffff' : color;
+        ctx.fillStyle = tool === 'eraser' ? '#ffffff' : color;
+        ctx.lineWidth = tool === 'eraser' ? size * 2 : size;
+        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        if (tool === 'pen' || tool === 'eraser') { ctx.beginPath(); ctx.moveTo(p.x, p.y); }
+        else if (tool === 'line' || tool === 'rect' || tool === 'circle') snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        else if (tool === 'fill') floodFill(Math.floor(p.x), Math.floor(p.y), color);
+      });
+      canvas.addEventListener('mousemove', (e) => {
+        if (!drawing) return;
+        const p = getPos(e);
+        if (tool === 'pen' || tool === 'eraser') { ctx.lineTo(p.x, p.y); ctx.stroke(); }
+        else if (tool === 'line') {
+          ctx.putImageData(snapshot, 0, 0);
+          ctx.beginPath(); ctx.moveTo(startX, startY); ctx.lineTo(p.x, p.y); ctx.stroke();
+        } else if (tool === 'rect') {
+          ctx.putImageData(snapshot, 0, 0);
+          ctx.strokeRect(startX, startY, p.x - startX, p.y - startY);
+        } else if (tool === 'circle') {
+          ctx.putImageData(snapshot, 0, 0);
+          const r = Math.hypot(p.x - startX, p.y - startY);
+          ctx.beginPath(); ctx.arc(startX, startY, r, 0, Math.PI * 2); ctx.stroke();
+        }
+      });
+      canvas.addEventListener('mouseup', () => drawing = false);
+      canvas.addEventListener('mouseleave', () => drawing = false);
+
+      function floodFill(x, y, hex) {
+        const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const w = img.width, h = img.height, data = img.data;
+        const start = (y * w + x) * 4;
+        const target = [data[start], data[start+1], data[start+2], data[start+3]];
+        const rgb = hexToRgb(hex);
+        if (target[0]===rgb[0] && target[1]===rgb[1] && target[2]===rgb[2]) return;
+        const stack = [[x, y]]; const visited = new Uint8Array(w * h);
+        while (stack.length) {
+          const [cx, cy] = stack.pop();
+          if (cx < 0 || cy < 0 || cx >= w || cy >= h) continue;
+          const i = cy * w + cx; if (visited[i]) continue;
+          visited[i] = 1; const p = i * 4;
+          if (data[p]===target[0] && data[p+1]===target[1] && data[p+2]===target[2] && data[p+3]===target[3]) {
+            data[p] = rgb[0]; data[p+1] = rgb[1]; data[p+2] = rgb[2]; data[p+3] = 255;
+            stack.push([cx+1,cy],[cx-1,cy],[cx,cy+1],[cx,cy-1]);
+          }
+        }
+        ctx.putImageData(img, 0, 0);
+      }
+      function hexToRgb(hex) {
+        const m = hex.replace('#','');
+        return [parseInt(m.substr(0,2),16), parseInt(m.substr(2,2),16), parseInt(m.substr(4,2),16)];
+      }
+    }
+  });
+}
+
+// ================= WORD =================
+function openWord() {
+  createWindow({
+    title: 'WordPad', icon: '📝',
+    width: 950, height: 640, app: 'word',
+    contentBuilder: (body) => {
+      body.innerHTML = '';
+      const tools = document.createElement('div');
+      tools.className = 'toolbar';
+      tools.innerHTML = `
+        <select id="wFont" style="width:140px">
+          <option value="Georgia, serif">Georgia</option>
+          <option value="Calibri, sans-serif">Calibri</option>
+          <option value="Arial, sans-serif">Arial</option>
+          <option value="Times New Roman, serif">Times New Roman</option>
+        </select>
+        <select id="wSize" style="width:65px">
+          <option>12</option><option>14</option><option selected>16</option><option>18</option><option>22</option>
+        </select>
+        <div class="sep"></div>
+        <button data-cmd="bold"><b>B</b></button>
+        <button data-cmd="italic"><i>I</i></button>
+        <button data-cmd="underline"><u>U</u></button>
+        <div class="sep"></div>
+        <input type="color" id="wColor" value="#000000" style="width:32px;height:26px;padding:0;border:1px solid #ccc;border-radius:4px">
+        <input type="color" id="wBg" value="#ffff00" style="width:32px;height:26px;padding:0;border:1px solid #ccc;border-radius:4px">
+        <div class="sep"></div>
+        <button data-cmd="justifyLeft">⬅</button>
+        <button data-cmd="justifyCenter">↔</button>
+        <button data-cmd="justifyRight">➡</button>
+        <div class="sep"></div>
+        <button id="wSave">💾 Guardar</button>
+        <button id="wDownload">⬇️ Descargar</button>
+      `;
+      const editorWrap = document.createElement('div');
+      editorWrap.className = 'word-editor';
+      const page = document.createElement('div');
+      page.className = 'word-page';
+      page.contentEditable = 'true';
+      page.innerHTML = `<h1 style="text-align:center;">Documento</h1><p>Escribe aquí...</p>`;
+      editorWrap.appendChild(page);
+      body.append(tools, editorWrap);
+
+      tools.querySelectorAll('button[data-cmd]').forEach(b => {
+        b.onmousedown = (e) => { e.preventDefault(); document.execCommand(b.dataset.cmd, false, null); page.focus(); };
+      });
+      tools.querySelector('#wFont').onchange = (e) => { document.execCommand('fontName', false, e.target.value); page.focus(); };
+      tools.querySelector('#wColor').oninput = (e) => { document.execCommand('foreColor', false, e.target.value); page.focus(); };
+      tools.querySelector('#wBg').oninput = (e) => { document.execCommand('hiliteColor', false, e.target.value); page.focus(); };
+      tools.querySelector('#wSize').onchange = (e) => {
+        const size = e.target.value;
+        const sel = window.getSelection();
+        if (sel.rangeCount && !sel.isCollapsed) {
+          const range = sel.getRangeAt(0);
+          const span = document.createElement('span');
+          span.style.fontSize = size + 'px';
+          try { span.appendChild(range.extractContents()); range.insertNode(span); } catch(err){}
+        }
+        page.focus();
+      };
+      tools.querySelector('#wSave').onclick = async () => {
+        const name = await askInput('Nombre (en /Documentos):', 'documento.html');
+        if (!name) return;
+        const folder = fs.root.children['Documentos'];
+        const finalName = uniqueName(folder, name);
+        const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="font-family:Georgia,serif;font-size:15px;line-height:1.7;max-width:720px;margin:40px auto;padding:20px;">${page.innerHTML}</body></html>`;
+        folder.children[finalName] = { type: 'file', content: html, mime: 'text/html' };
+        try { saveFS(); notify('WordPad', `Documentos/${finalName}`); refreshAllFileManagers(); renderDesktopIcons(); }
+        catch(e) { notify('Error', 'No se pudo guardar'); }
+      };
+      tools.querySelector('#wDownload').onclick = () => {
+        const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="font-family:Georgia,serif;font-size:15px;line-height:1.7;max-width:720px;margin:40px auto;padding:20px;">${page.innerHTML}</body></html>`;
+        const blob = new Blob([html], { type: 'text/html' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob); a.download = 'documento.html'; a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        notify('Descarga', 'Documento descargado');
+      };
+    }
+  });
+}
+
+// ================= CALCULADORA =================
+function openCalculator() {
+  createWindow({
+    title: 'Calculadora', icon: '🧮',
+    width: 320, height: 460, app: 'calc',
+    contentBuilder: (body) => {
+      body.style.background = '#202020';
+      body.innerHTML = `
+        <div style="display:flex;flex-direction:column;height:100%;padding:12px;">
+          <div id="calcDisplay" style="background:#202020;color:#fff;font-size:32px;text-align:right;padding:14px 16px;overflow:hidden;min-height:60px;word-break:break-all;">0</div>
+          <div id="calcBtns" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;flex:1;margin-top:12px;"></div>
+        </div>
+      `;
+      const display = body.querySelector('#calcDisplay');
+      const btns = body.querySelector('#calcBtns');
+      let cur = '0', prev = null, op = null, waiting = false;
+      const layout = [['C','⌫','%','÷'],['7','8','9','×'],['4','5','6','−'],['1','2','3','+'],['±','0','.','=']];
+      layout.forEach(row => row.forEach(lbl => {
+        const b = document.createElement('button');
+        b.textContent = lbl;
+        b.style.cssText = 'padding:0;border:none;border-radius:4px;font-size:18px;cursor:pointer;color:#fff;background:#333;';
+        if (['÷','×','−','+','='].includes(lbl)) b.style.background = '#0078d4';
+        if (['C','⌫','%','±'].includes(lbl)) b.style.background = '#404040';
+        b.onclick = () => handle(lbl);
+        btns.appendChild(b);
+      }));
+      function handle(l) {
+        if (l === 'C') { cur='0'; prev=null; op=null; waiting=false; }
+        else if (l === '⌫') { cur = cur.length>1 ? cur.slice(0,-1) : '0'; }
+        else if (l === '±') { cur = cur.startsWith('-') ? cur.slice(1) : (cur==='0'?'0':'-'+cur); }
+        else if (l === '%') { cur = String(parseFloat(cur)/100); }
+        else if ('0123456789.'.includes(l)) {
+          if (waiting) { cur = l==='.' ? '0.' : l; waiting = false; }
+          else { if (l === '.' && cur.includes('.')) return; cur = cur === '0' && l !== '.' ? l : cur + l; }
+        } else if (['÷','×','−','+'].includes(l)) {
+          if (op && !waiting) cur = String(calc(prev, parseFloat(cur), op));
+          prev = parseFloat(cur); op = l; waiting = true;
+        } else if (l === '=') {
+          if (op) { cur = String(calc(prev, parseFloat(cur), op)); op = null; waiting = true; }
+        }
+        display.textContent = cur;
+      }
+      function calc(a, b, o) {
+        if (o === '+') return a + b; if (o === '−') return a - b;
+        if (o === '×') return a * b; if (o === '÷') return b === 0 ? 'Error' : a / b;
+        return b;
+      }
+    }
+  });
+}
+
+// ================= RELOJ =================
+function openClockApp() {
+  createWindow({
+    title: 'Reloj', icon: '⏰',
+    width: 380, height: 280, app: 'clock',
+    contentBuilder: (body) => {
+      body.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;background:#111;color:#fff;';
+      const timeEl = document.createElement('div');
+      timeEl.style.cssText = 'font-size:64px;font-weight:300;letter-spacing:2px;';
+      const dateEl = document.createElement('div');
+      dateEl.style.cssText = 'font-size:16px;color:#bbb;margin-top:8px;';
+      body.append(timeEl, dateEl);
+      const update = () => {
+        const d = new Date();
+        timeEl.textContent = d.toLocaleTimeString();
+        dateEl.textContent = d.toLocaleDateString('es-ES', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+      };
+      update(); setInterval(update, 1000);
+    }
+  });
+}
+
+// ================= SETTINGS =================
+function openSettings() {
+  createWindow({
+    title: 'Configuración', icon: '⚙️',
+    width: 600, height: 520, app: 'settings',
+    contentBuilder: (body) => {
+      const fsSize = new Blob([JSON.stringify(fs)]).size;
+      const fsSizeKB = (fsSize / 1024).toFixed(1);
+      const usagePercent = (fsSize / (5 * 1024 * 1024) * 100).toFixed(1);
+      body.innerHTML = `
+        <div class="settings-box">
+          <h3>🖥️ Sistema</h3>
+          <p style="font-size:12px;color:#666;margin-bottom:12px">WinWeb OS v4 · Ejecutor HTML</p>
+          <div style="background:#f0f0f0;padding:12px;border-radius:6px;margin-bottom:12px;">
+            <div style="font-size:12px;margin-bottom:6px;"><b>Almacenamiento:</b> ${fsSizeKB} KB</div>
+            <div style="background:#ddd;height:8px;border-radius:4px;overflow:hidden;">
+              <div style="width:${Math.min(100, usagePercent)}%;height:100%;background:#0078d4;"></div>
+            </div>
+            <div style="font-size:11px;color:#666;margin-top:4px;">${usagePercent}% de ~5 MB</div>
+          </div>
+          <button id="btnFullscreen">🖥️ Pantalla completa</button>
+          <button id="btnReset">🔄 Restablecer sistema</button>
+          <button id="btnClearClip">📋 Limpiar portapapeles</button>
+
+          <h3 style="margin-top:24px">📁 Importar / Exportar</h3>
+          <button id="btnImportDocs">📤 Importar archivos</button>
+          <button id="btnExport">⬇️ Exportar TODO</button>
+
+          <h3 style="margin-top:24px">💻 Programas HTML</h3>
+          <p style="font-size:12px;color:#666;margin-bottom:8px">Guarda archivos .html en /Programas. Al hacer doble click en el explorador, se ejecutan en ventana.</p>
+          <button id="btnOpenPrograms">📂 Ver /Programas</button>
+          <button id="btnCodeStudio">💻 Abrir Code Studio</button>
+
+          <h3 style="margin-top:24px">🎨 Apariencia</h3>
+          <button data-bg="linear-gradient(135deg,#0f2027,#203a43,#2c5364)">Azul oscuro</button>
+          <button data-bg="linear-gradient(135deg,#141e30,#243b55)">Océano</button>
+          <button data-bg="linear-gradient(135deg,#232526,#414345)">Gris</button>
+          <button data-bg="linear-gradient(135deg,#42275a,#734b6d)">Púrpura</button>
+        </div>
+      `;
+      body.querySelector('#btnFullscreen').onclick = () => {
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+        else document.exitFullscreen();
+      };
+      body.querySelector('#btnReset').onclick = () => {
+        if (confirm('¿Borrar TODOS los datos?')) { localStorage.removeItem(FS_KEY); location.reload(); }
+      };
+      body.querySelector('#btnClearClip').onclick = () => { clipboardClear(); notify('Portapapeles', 'Limpiado'); };
+      body.querySelector('#btnImportDocs').onclick = () => triggerImport(['Documentos']);
+      body.querySelector('#btnExport').onclick = () => {
+        const data = JSON.stringify(fs, null, 2);
+        const blob = new Blob([data], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'winweb_backup_' + Date.now() + '.json';
+        a.click();
+        notify('Exportado', 'Backup descargado');
+      };
+      body.querySelector('#btnOpenPrograms').onclick = () => openFileManager(['Programas']);
+      body.querySelector('#btnCodeStudio').onclick = () => openCodeStudio();
+      body.querySelectorAll('[data-bg]').forEach(b => {
+        b.onclick = () => { document.body.style.background = b.dataset.bg; notify('Apariencia', 'Fondo cambiado'); };
+      });
+    }
+  });
+}
+
+// ================= ATAJOS GLOBALES =================
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    hideContextMenu(); closeStartMenu();
+    document.getElementById('taskView').classList.remove('open');
+  }
+  if (e.altKey && e.key === 'Tab') {
+    e.preventDefault();
+    document.getElementById('taskView').classList.add('open');
+  }
+  if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'p') { e.preventDefault(); openPaint(); }
+  if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'w') { e.preventDefault(); openWord(); }
+  if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'e') { e.preventDefault(); openCodeStudio(); }
+
+  if (activeWinId && windows.get(activeWinId)?.app === 'files') {
+    const winBody = windows.get(activeWinId).el.querySelector('.window-body');
+    const fmList = winBody.querySelector('.fm-list');
+    if (!fmList) return;
+    const selected = [...fmList.querySelectorAll('.fm-item.selected')];
+    const currentPath = winBody._currentPath || [];
+    if (e.ctrlKey && e.key.toLowerCase() === 'c' && selected.length) {
+      e.preventDefault(); clipboardCopy(selected.map(el => [...currentPath, el.dataset.name]));
+    }
+    if (e.ctrlKey && e.key.toLowerCase() === 'x' && selected.length) {
+      e.preventDefault(); clipboardCut(selected.map(el => [...currentPath, el.dataset.name]));
+    }
+    if (e.ctrlKey && e.key.toLowerCase() === 'v' && fsClipboard.items.length) {
+      e.preventDefault(); clipboardPaste(currentPath); renderDesktopIcons();
+    }
+  }
+});
+
+// ================= BIENVENIDA =================
+setTimeout(() => {
+  document.getElementById('bootSplash').classList.add('hide');
+  setTimeout(() => document.getElementById('bootSplash').remove(), 900);
+  setTimeout(() => {
+    notify('WinWeb OS v4', '💻 Code Studio: escribe HTML y ejecútalo al instante');
+  }, 500);
+}, 1200);
+</script>
+</body>
+</html>
